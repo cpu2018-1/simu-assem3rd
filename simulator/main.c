@@ -543,7 +543,7 @@ int main (int argc, char *argv[]){
                 break;
             case 0b101111:
                 //FLW
-                freg[rd] = mem_data[reg[rs] + imm];
+                freg[rd] = *(float *)&mem_data[reg[rs] + imm];
                 pc++;
                 opcount[22]++;
                 if(debug){
@@ -553,7 +553,7 @@ int main (int argc, char *argv[]){
                 break;
             case 0b100111:
                 //FSW
-                mem_data[reg[rs] + divimm] = freg[rt];
+                mem_data[reg[rs] + divimm] = *(int *)&freg[rt];
                 pc++;
                 opcount[23]++;
                 if(debug){
