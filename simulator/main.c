@@ -776,10 +776,9 @@ int main (int argc, char *argv[]){
 
                 }
 
-                dopcount++;
-
             }
 
+                dopcount++;
     }
 
     if(debug && last)

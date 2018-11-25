@@ -1855,6 +1855,7 @@ YY_RULE_SETUP
                 print_bcode(bcode);
             
             }
+            jb = 0;
             argnum = 1;
             bcode = 0;
             linenum++;
@@ -1865,7 +1866,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 759 "lex.l"
+#line 760 "lex.l"
 { BEGIN(COMMENT);
              printf("comment\n");
              yymore(); 
@@ -1873,7 +1874,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 763 "lex.l"
+#line 764 "lex.l"
 { BEGIN(COMMENT);
              printf("comment\n");
              yymore();
@@ -1881,20 +1882,20 @@ YY_RULE_SETUP
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 767 "lex.l"
+#line 768 "lex.l"
 ; 
 	YY_BREAK
 case 61:
 /* rule 61 can match eol */
 YY_RULE_SETUP
-#line 768 "lex.l"
+#line 769 "lex.l"
 {
             if(return_flag){
                 return_flag--;
                 add_to_buffer(bcode);
                 print_bcode(bcode);
             }
-              
+            jb = 0;
             argnum = 1;
             bcode = 0;
             linenum++;
@@ -1905,10 +1906,10 @@ YY_RULE_SETUP
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 783 "lex.l"
+#line 784 "lex.l"
 ECHO;
 	YY_BREAK
-#line 1912 "lex.c"
+#line 1913 "lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2903,7 +2904,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 783 "lex.l"
+#line 784 "lex.l"
 
 
 
