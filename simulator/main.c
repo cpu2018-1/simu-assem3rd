@@ -935,6 +935,13 @@ void print_info(void){
           fgetc(stdin);
           printf("%d\n", mem_data[n]);
 
+      }else if(strcmp(comm, "fmem") == 0){
+       
+          int n;
+          scanf("%d", &n);
+          fgetc(stdin);
+          printf("%f\n", *(float *)&mem_data[n]); 
+        
       }else if(strcmp(comm, "io") == 0){
 
           printf("%d\n", io);
