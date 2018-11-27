@@ -10,7 +10,6 @@
 #define OPNUM 40
 
 void print_info(void);
-//union uv { float f; int i; };
 typedef struct {
 
   int linenum;
@@ -36,6 +35,7 @@ int op = 0;
 int line = 0;
 int label = 0;
 int count = 0;
+int change = 0;
 int last = 0;
 
 char jumpop[16];
@@ -43,6 +43,10 @@ char currop[16];
 int jumpline = 0;
 char jumplabel[64];
 int jumpcount = 0;
+char jumpcharg[8];
+int jumpchnum = 0;
+char currcharg[8];
+int currchnum = 0;
 long long int dopcount = 0;
 
 //データ構造
@@ -117,7 +121,6 @@ int main (int argc, char *argv[]){
     char subname[64];
     char inname[64];
     long codenum;
-    //union uv v = {0};
     
 
     //引数処理およびファイルオープン
@@ -220,10 +223,6 @@ int main (int argc, char *argv[]){
           if(divimm >> 15)
             divimm = divimm | 0xffff0000;
         int udivimm = (((code >> 21) & 0b11111) << 11) + (code & 0b11111111111);
-        
-        /*int jaddr = code & 0x3ffffff;
-          if(jaddr >> 25)
-             jaddr = jaddr | 0xfc000000;*/
         reg[0] = 0;
         freg[0] = 0;
       
@@ -250,6 +249,8 @@ int main (int argc, char *argv[]){
                 opcount[0]++;
                 if(debug){
                   strcpy(currop, "lui");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("lui r%d r%d %d\n", rd, rs, imm);
                 }
                 reg[rd] = (imm << 16) | (reg[rs] & 0b1111111111111111);
@@ -260,6 +261,8 @@ int main (int argc, char *argv[]){
                 opcount[1]++;
                 if(debug){
                   strcpy(currop, "add");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("add r%d r%d r%d\n", rd, rs, rt);
                 }
                 reg[rd] = reg[rs] + reg[rt];
@@ -270,6 +273,8 @@ int main (int argc, char *argv[]){
                 opcount[2]++;
                 if(debug){
                   strcpy(currop, "addi");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("addi r%d r%d %d\n", rd, rs, imm);
                 }
                 reg[rd] = reg[rs] + imm;
@@ -280,6 +285,8 @@ int main (int argc, char *argv[]){
                 opcount[3]++;
                 if(debug){
                   strcpy(currop, "sub");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("sub r%d r%d r%d\n", rd, rs, rt);
                 }
                 reg[rd] = reg[rs] - reg[rt];
@@ -290,6 +297,8 @@ int main (int argc, char *argv[]){
                 opcount[4]++;
                 if(debug){
                   strcpy(currop, "sll");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("sll r%d r%d r%d\n", rd, rs, rt);  
                 }
                 reg[rd] = reg[rs] << (reg[rt] & 0b11111);
@@ -300,6 +309,8 @@ int main (int argc, char *argv[]){
                 opcount[5]++;
                 if(debug){
                   strcpy(currop, "slli");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("slli r%d r%d %d\n", rd, rs, imm);  
                 }
                 reg[rd] = reg[rs] << (imm & 0b11111);
@@ -310,6 +321,8 @@ int main (int argc, char *argv[]){
                 opcount[6]++;
                 if(debug){
                   strcpy(currop, "srl");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("srl r%d r%d r%d\n", rd, rs, rt);  
                 }
                 reg[rd] = (int)((unsigned)reg[rs] >> (reg[rt] & 0b11111));
@@ -320,6 +333,8 @@ int main (int argc, char *argv[]){
                 opcount[7]++;
                 if(debug){
                   strcpy(currop, "srli");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("srli r%d r%d %d\n", rd, rs, imm);  
                 }
                 reg[rd] = (int)((unsigned)reg[rs] >> (imm & 0b11111));
@@ -330,6 +345,8 @@ int main (int argc, char *argv[]){
                 opcount[8]++;
                 if(debug){
                   strcpy(currop, "sra");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("sra r%d r%d r%d\n", rd, rs, rt);  
                 }
                 reg[rd] = reg[rs] >> (reg[rt] & 0b11111);
@@ -340,6 +357,8 @@ int main (int argc, char *argv[]){
                 opcount[9]++;
                 if(debug){
                   strcpy(currop, "srai");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("srai r%d r%d %d\n", rd, rs, imm);  
                 }
                 reg[rd] = reg[rs] >> (imm & 0b11111);
@@ -528,6 +547,8 @@ int main (int argc, char *argv[]){
                 opcount[20]++;
                 if(debug){
                   strcpy(currop, "lw");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("lw r%d r%d %d\n", rd, rs, imm);
                 }
                 break;
@@ -548,6 +569,8 @@ int main (int argc, char *argv[]){
                 opcount[22]++;
                 if(debug){
                   strcpy(currop, "flw");
+                  strcpy(currcharg, "freg");
+                  currchnum = rd;
                   printf("flw f%d r%d %d\n", rd, rs, imm);
                 }
                 break;
@@ -585,6 +608,8 @@ int main (int argc, char *argv[]){
                 opcount[25]++;
                 if(debug){
                   strcpy(currop, "in");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("in\n");
                 }
                 break;
@@ -599,6 +624,8 @@ int main (int argc, char *argv[]){
                       opcount[26]++;
                       if(debug){
                         strcpy(currop, "fadd");
+                        strcpy(currcharg, "freg");
+                        currchnum = rd;
                         printf("fadd f%d f%d f%d\n", rd, rs, rt);
                       }
                       break;
@@ -609,6 +636,8 @@ int main (int argc, char *argv[]){
                       opcount[27]++;
                       if(debug){
                         strcpy(currop, "fsub");
+                        strcpy(currcharg, "freg");
+                        currchnum = rd;
                         printf("fsub f%d f%d f%d\n", rd, rs, rt);
                       }
                       break;
@@ -619,6 +648,8 @@ int main (int argc, char *argv[]){
                       opcount[28]++;
                       if(debug){
                         strcpy(currop, "fmul");
+                        strcpy(currcharg, "freg");
+                        currchnum = rd;
                         printf("fmul f%d f%d f%d\n", rd, rs, rt);
                       }
                       break;
@@ -629,6 +660,8 @@ int main (int argc, char *argv[]){
                       opcount[29]++;
                       if(debug){
                         strcpy(currop, "fdiv");
+                        strcpy(currcharg, "freg");
+                        currchnum = rd;
                         printf("fdiv f%d f%d f%d\n", rd, rs, rt);
                       }
                       break;
@@ -639,6 +672,8 @@ int main (int argc, char *argv[]){
                       opcount[30]++;
                       if(debug){
                         strcpy(currop, "fsqrt");
+                        strcpy(currcharg, "freg");
+                        currchnum = rd;
                         printf("fsqrt f%d f%d\n", rd, rs);
                       }
                       break;
@@ -649,6 +684,8 @@ int main (int argc, char *argv[]){
                       opcount[31]++;
                       if(debug){
                         strcpy(currop, "feq");
+                        strcpy(currcharg, "reg");
+                        currchnum = rd;
                         printf("feq r%d f%d f%d\n", rd, rs, rt);
                       }
                       break;
@@ -659,6 +696,8 @@ int main (int argc, char *argv[]){
                       opcount[32]++;
                       if(debug){
                         strcpy(currop, "flt");
+                        strcpy(currcharg, "reg");
+                        currchnum = rd;
                         printf("flt r%d f%d f%d\n", rd, rs, rt);
                       }
                       break;
@@ -669,6 +708,8 @@ int main (int argc, char *argv[]){
                       opcount[33]++;
                       if(debug){
                         strcpy(currop, "fle");
+                        strcpy(currcharg, "reg");
+                        currchnum = rd;
                         printf("fle r%d f%d f%d\n", rd, rs, rt);
                       }
                       break;
@@ -679,6 +720,8 @@ int main (int argc, char *argv[]){
                       opcount[34]++;
                       if(debug){
                         strcpy(currop, "ftoi");
+                        strcpy(currcharg, "reg");
+                        currchnum = rd;
                         printf("ftoi r%d f%d\n", rd, rs);
                       }
                       break;
@@ -689,6 +732,8 @@ int main (int argc, char *argv[]){
                       opcount[35]++;
                       if(debug){
                         strcpy(currop, "itof");
+                        strcpy(currcharg, "freg");
+                        currchnum = rd;
                         printf("itof f%d r%d\n", rd, rs);
                       }
                       break;
@@ -699,6 +744,8 @@ int main (int argc, char *argv[]){
                       opcount[37]++;
                       if(debug){
                         strcpy(currop, "fneg");
+                        strcpy(currcharg, "freg");
+                        currchnum = rd;
                         printf("fneg f%d f%d\n", rd, rs);
                       }
                       break;
@@ -709,6 +756,8 @@ int main (int argc, char *argv[]){
                       opcount[38]++;
                       if(debug){
                         strcpy(currop, "fmvfr");
+                        strcpy(currcharg, "freg");
+                        currchnum = rd;
                         printf("fmvfr f%d r%d\n", rd, rs);
                       }
                       break;
@@ -719,6 +768,8 @@ int main (int argc, char *argv[]){
                       opcount[39]++;
                       if(debug){
                         strcpy(currop, "fmvtr");
+                        strcpy(currcharg, "reg");
+                        currchnum = rd;
                         printf("fmvtr r%d f%d\n", rd, rs);
                       }
                       break;
@@ -732,6 +783,8 @@ int main (int argc, char *argv[]){
                 opcount[36]++;
                 if(debug){
                   strcpy(currop, "flup");
+                  strcpy(currcharg, "reg");
+                  currchnum = rd;
                   printf("flup f%d %d\n", rd, imm);  
                 }
                 freg[rd] = *(float *)&ftable[imm & 0b1111111];
@@ -743,8 +796,7 @@ int main (int argc, char *argv[]){
             }
 
             if(debug){
-
-                if(op == 0 && line == 0 && label == 0 && count == 0 && last == 0){
+                if(op == 0 && line == 0 && label == 0 && count == 0 && change == 0 && last == 0){
                   print_info();
                 }else if(op == 1){
                   
@@ -772,6 +824,13 @@ int main (int argc, char *argv[]){
                   if(jumpcount == dopcount){
                       count = 0;
                       print_info();
+                  }
+
+                }else if(change == 1){
+
+                  if(strcmp(jumpcharg, currcharg) == 0 && jumpchnum == currchnum){
+                        change = 0;
+                        print_info();
                   }
 
                 }
@@ -899,6 +958,33 @@ void print_info(void){
           putchar('\n');
           break;
       }
+
+      if(strcmp(comm, "ch") == 0 || strcmp(comm, "change") == 0){
+        
+          scanf("%s", jumpcharg);
+          change = 1;
+          scanf("%d", &jumpchnum);
+          fgetc(stdin);
+          putchar('\n');
+          break; 
+
+      }
+
+      /*if(strcmp(comm, "chreg") == 0){
+          chreg = 1;
+          scanf("%d", &jumpregnum);
+          fgetc(stdin);
+          putchar('\n');
+          break;
+      }
+
+      if(strcmp(comm, "chfreg") == 0){
+          chfreg = 1;
+          scanf("%d", &jumpfregnum);
+          fgetc(stdin);
+          putchar('\n');
+          break;
+      }*/
 
       if( strcmp(comm, "ll") == 0 || strcmp(comm, "last") == 0){
           last = 1;

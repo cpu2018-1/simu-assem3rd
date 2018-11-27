@@ -15,11 +15,12 @@ option	:-dのみ
 
 <移動用>
 n(next)			:次の命令に移ります(改行でも同じ)
-l(line)    N		:アセンブリのN行目を実行したところまで移ります
-lb(label)  LABEL	:アセンブリのLABELがさす命令を実行したところまで移ります
-o(opecode) OPECODE	:OPECODE命令を実行したところまで移ります(OPECODEは小文字)
-j(jump)    DEST		:上記3コマンドをまとめたものです(DESTは優先度の高い順にN > OPECODE > LABELとして判定)
-c(count)   N		:N回目の命令が実行されるところまで移ります(nは0からスタート)
+l(line)     N		:アセンブリのN行目を実行したところまで移ります
+lb(label)   LABEL	:アセンブリのLABELがさす命令を実行したところまで移ります
+o(opecode)  OPECODE	:OPECODE命令を実行したところまで移ります(OPECODEは小文字)
+j(jump)     DEST	:上記3コマンドをまとめたものです(DESTは優先度の高い順にN > OPECODE > LABELとして判定)
+c(count)    N		:N回目の命令が実行されるところまで移ります(nは0からスタート)
+ch(change)  ARG  N	:レジスタ(浮動小数点レジスタ)N番の値が変化するところまで移ります(ARG = reg もしくは freg)
 ll(last) 		:全命令が終了するところまで移ります
 q(quit)			:プログラムを終了します
 
