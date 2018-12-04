@@ -15,10 +15,12 @@ typedef struct {
   int linenum;
   int l_linenum;
   char *label;
+  int jumpcount;
 
 } ssubinfo;
 
 ssubinfo subinfo[CODESIZE]; 
+
 
 char *opdata[OPNUM] = {"lui", "add", "addi", "sub", "sll", "slli", "srl", 
                   "srli", "sra", "srai", "j", "jal", "jr", "jalr",
@@ -28,6 +30,7 @@ char *opdata[OPNUM] = {"lui", "add", "addi", "sub", "sll", "slli", "srl",
                   "feq", "flt", "fle", "ftoi", "itof", "flup", 
                   "fneg", "fmvfr", "fmvtr"};
 long long int opcount[OPNUM] = {0};
+
 
 int debug = 0;
 int sub = 0;
@@ -368,11 +371,12 @@ int main (int argc, char *argv[]){
                 //J
                 pc = uimm;
                 opcount[10]++;
+                subinfo[pc].jumpcount++;
                 if(debug){
                   strcpy(currop, "j");
                   if(sub){
                     if(subinfo[pc].label != NULL){
-                        printf("j \e[33m%s(line %d)\e[0m\n", subinfo[pc].label, subinfo[pc].l_linenum);   
+                        printf("j \e[33m%s(line %d)\e[0m\n", subinfo[pc].label, subinfo[pc].l_linenum);    
                     }else{
                         printf("j \e[33m(line %d)\e[0m\n", subinfo[pc].l_linenum);
                     }
@@ -387,6 +391,7 @@ int main (int argc, char *argv[]){
                 reg[31] = pc + 1;
                 pc = uimm;
                 opcount[11]++;
+                subinfo[pc].jumpcount++;
                 if(debug){
                   strcpy(currop, "jal");
                   if(sub){
@@ -438,6 +443,7 @@ int main (int argc, char *argv[]){
                     pc = udivimm;
                     if(debug && sub)
                        printf("beq r%d r%d \e[33m%s(line %d)\e[0m\n",rs ,rt, subinfo[pc].label, subinfo[pc].l_linenum);   
+                    subinfo[pc].jumpcount++;
                 }
                 else{
                   if(debug && sub)
@@ -457,6 +463,7 @@ int main (int argc, char *argv[]){
                     pc = udivimm;
                     if(debug && sub)
                        printf("bne r%d r%d \e[33m%s(line %d)\e[0m\n",rs ,rt, subinfo[pc].label, subinfo[pc].l_linenum);   
+                    subinfo[pc].jumpcount++;
                 }
                 else{
                   if(debug && sub)
@@ -476,6 +483,7 @@ int main (int argc, char *argv[]){
                     pc = uimm;
                     if(debug && sub)
                        printf("beqi %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
+                    subinfo[pc].jumpcount++;
                 }
                 else{
                   if(debug && sub)
@@ -495,6 +503,7 @@ int main (int argc, char *argv[]){
                     pc = uimm;
                     if(debug && sub)
                        printf("bnei %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
+                    subinfo[pc].jumpcount++;
                 }
                 else{
                   if(debug && sub)
@@ -514,6 +523,7 @@ int main (int argc, char *argv[]){
                     pc = uimm;
                     if(debug && sub)
                        printf("blei %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
+                    subinfo[pc].jumpcount++;
                 }
                 else{
                   if(debug && sub)
@@ -533,6 +543,7 @@ int main (int argc, char *argv[]){
                     pc = uimm;
                     if(debug && sub)
                        printf("bgei %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
+                    subinfo[pc].jumpcount++;
                 }
                 else{
                   if(debug && sub)
@@ -853,7 +864,14 @@ int main (int argc, char *argv[]){
 
     }
 
+    fprintf(stfp, "\n各labelへjump/branch回数\n");
 
+    for(int i = 0; i < CODESIZE; i++){
+        
+          if(subinfo[i].label != NULL)
+            fprintf(stfp, "%s\t%d\n", subinfo[i].label, subinfo[i].jumpcount);
+
+    }
 
     if(fclose( fp ) == EOF ){
         fputs( "ファイルクローズに失敗しました。\n", stderr );
@@ -969,22 +987,6 @@ void print_info(void){
           break; 
 
       }
-
-      /*if(strcmp(comm, "chreg") == 0){
-          chreg = 1;
-          scanf("%d", &jumpregnum);
-          fgetc(stdin);
-          putchar('\n');
-          break;
-      }
-
-      if(strcmp(comm, "chfreg") == 0){
-          chfreg = 1;
-          scanf("%d", &jumpfregnum);
-          fgetc(stdin);
-          putchar('\n');
-          break;
-      }*/
 
       if( strcmp(comm, "ll") == 0 || strcmp(comm, "last") == 0){
           last = 1;
