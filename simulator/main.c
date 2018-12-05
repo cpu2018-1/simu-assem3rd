@@ -21,6 +21,9 @@ typedef struct {
 
 ssubinfo subinfo[CODESIZE]; 
 
+int maxr3 = 0;
+int maxr4 = 0;
+
 
 char *opdata[OPNUM] = {"lui", "add", "addi", "sub", "sll", "slli", "srl", 
                   "srli", "sra", "srai", "j", "jal", "jr", "jalr",
@@ -457,17 +460,17 @@ int main (int argc, char *argv[]){
                 if(debug){
                   strcpy(currop, "ble");
                   if(sub == 0)
-                    printf("bne r%d r%d %d\n", rs, rt, udivimm);
+                    printf("ble r%d r%d %d\n", rs, rt, udivimm);
                 }
                 if(reg[rs] <= reg[rt]){
                     pc = udivimm;
                     if(debug && sub)
-                       printf("bne r%d r%d \e[33m%s(line %d)\e[0m\n",rs ,rt, subinfo[pc].label, subinfo[pc].l_linenum);   
+                       printf("ble r%d r%d \e[33m%s(line %d)\e[0m\n",rs ,rt, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
                 }
                 else{
                   if(debug && sub)
-                    printf("bne r%d r%d %s(line %d)\n",rs ,rt, subinfo[udivimm].label, subinfo[udivimm].l_linenum);   
+                    printf("ble r%d r%d %s(line %d)\n",rs ,rt, subinfo[udivimm].label, subinfo[udivimm].l_linenum);   
                   pc++;
                 }
                 break;
@@ -849,6 +852,15 @@ int main (int argc, char *argv[]){
             }
 
                 dopcount++;
+
+                if(maxr3 < reg[3]){
+                  maxr3 = reg[3];
+                }
+
+                if(maxr4 < reg[4]){
+                  maxr4 = reg[4];
+                }
+
     }
 
     if(debug && last)
@@ -872,6 +884,9 @@ int main (int argc, char *argv[]){
             fprintf(stfp, "%s\t%d\n", subinfo[i].label, subinfo[i].jumpcount);
 
     }
+
+    fprintf(stfp, "\nr3 r4の最大値\n");
+    fprintf(stfp, "r3\t%d\nr4\t%d\n", maxr3, maxr4);
 
     if(fclose( fp ) == EOF ){
         fputs( "ファイルクローズに失敗しました。\n", stderr );
