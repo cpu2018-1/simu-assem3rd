@@ -8,6 +8,8 @@
 #define DATASIZE 131072
 #define FTBLSIZE 128
 #define OPNUM 40
+#define BPNUM 65536
+
 
 void print_info(void);
 typedef struct {
@@ -24,7 +26,6 @@ ssubinfo subinfo[CODESIZE];
 int maxr3 = 0;
 int maxr4 = 0;
 
-
 char *opdata[OPNUM] = {"lui", "add", "addi", "sub", "sll", "slli", "srl", 
                   "srli", "sra", "srai", "j", "jal", "jr", "jalr",
                   "beq", "ble", "beqi", "bnei", "blei", "bgei", "lw", "sw",
@@ -34,7 +35,7 @@ char *opdata[OPNUM] = {"lui", "add", "addi", "sub", "sll", "slli", "srl",
                   "fneg", "fmvfr", "fmvtr"};
 long long int opcount[OPNUM] = {0};
 
-
+//デバッグ用
 int debug = 0;
 int sub = 0;
 int op = 0;
@@ -54,6 +55,17 @@ int jumpchnum = 0;
 char currcharg[8];
 int currchnum = 0;
 long long int dopcount = 0;
+
+//分岐予測器
+int bp[BPNUM] = {0};
+int bpfilter = 0;
+int bpaddr;
+int bpflag = 0;
+int taken[4] = {1,2,3,3};
+int nottaken[4] = {0,0,1,2};
+long long int bopcount = 0;
+long long int bcount = 0;
+long long int bpsuccess = 0;
 
 //データ構造
 int mem_code[CODESIZE];
@@ -128,6 +140,7 @@ int main (int argc, char *argv[]){
     char inname[64];
     long codenum;
     
+    bpfilter = BPNUM-1;
 
     //引数処理およびファイルオープン
     if(argc > 1){
@@ -437,121 +450,163 @@ int main (int argc, char *argv[]){
             case 0b010010:
                 //BEQ
                 opcount[14]++;
+                bopcount++;
+                bpaddr = udivimm & bpfilter;
+                bpflag = bp[bpaddr];
                 if(debug){
                   strcpy(currop, "beq");
                   if(sub == 0)
                     printf("beq r%d r%d %d\n", rs, rt, udivimm);
                 }
                 if(reg[rs] == reg[rt]){
+                    bcount++;
+                    bpsuccess += (bpflag >= 2 ? 1 : 0);
+                    bp[bpaddr] = taken[bpflag];
                     pc = udivimm;
                     if(debug && sub)
                        printf("beq r%d r%d \e[33m%s(line %d)\e[0m\n",rs ,rt, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
-                }
-                else{
-                  if(debug && sub)
-                    printf("beq r%d r%d %s(line %d)\n",rs ,rt, subinfo[udivimm].label, subinfo[udivimm].l_linenum);   
-                  pc++;
+                }else{
+                    bpsuccess += (bpflag <= 1 ? 1 : 0);
+                    bp[bpaddr] = nottaken[bpflag];
+                    if(debug && sub)
+                      printf("beq r%d r%d %s(line %d)\n",rs ,rt, subinfo[udivimm].label, subinfo[udivimm].l_linenum);   
+                    pc++;
                 }
                 break;
             case 0b011010:
                 //BLE
                 opcount[15]++;
+                bopcount++;
+                bpaddr = udivimm & bpfilter;
+                bpflag = bp[bpaddr];
                 if(debug){
                   strcpy(currop, "ble");
                   if(sub == 0)
                     printf("ble r%d r%d %d\n", rs, rt, udivimm);
                 }
                 if(reg[rs] <= reg[rt]){
+                    bcount++;
+                    bpsuccess += (bpflag >= 2 ? 1 : 0);
+                    bp[bpaddr] = taken[bpflag];
                     pc = udivimm;
                     if(debug && sub)
                        printf("ble r%d r%d \e[33m%s(line %d)\e[0m\n",rs ,rt, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
-                }
-                else{
-                  if(debug && sub)
-                    printf("ble r%d r%d %s(line %d)\n",rs ,rt, subinfo[udivimm].label, subinfo[udivimm].l_linenum);   
-                  pc++;
+                }else{
+                    bpsuccess += (bpflag <= 1 ? 1 : 0);
+                    bp[bpaddr] = nottaken[bpflag];
+                    if(debug && sub)
+                      printf("ble r%d r%d %s(line %d)\n",rs ,rt, subinfo[udivimm].label, subinfo[udivimm].l_linenum);   
+                    pc++;
                 }
                 break;
             case 0b110010:
                 //BEQI
                 opcount[16]++;
+                bopcount++;
+                bpaddr = uimm & bpfilter;
+                bpflag = bp[bpaddr];
                 if(debug){
                   strcpy(currop, "beqi");
                   if(sub == 0)
                     printf("beqi %d r%d %d\n", opr, rs, uimm);
                 }
                 if(reg[rs] == opr){
+                    bcount++;
+                    bpsuccess += (bpflag >= 2 ? 1 : 0);
+                    bp[bpaddr] = taken[bpflag];
                     pc = uimm;
                     if(debug && sub)
                        printf("beqi %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
-                }
-                else{
-                  if(debug && sub)
-                    printf("beqi %d r%d %s(line %d)\n", opr ,rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
-                  pc++;
+                }else{
+                    bpsuccess += (bpflag <= 1 ? 1 : 0);
+                    bp[bpaddr] = nottaken[bpflag];
+                    if(debug && sub)
+                      printf("beqi %d r%d %s(line %d)\n", opr ,rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
+                    pc++;
                 }
                 break;
             case 0b111010:
                 //BNEI
                 opcount[17]++;
+                bopcount++;
+                bpaddr = uimm & bpfilter;
+                bpflag = bp[bpaddr];
                 if(debug){
                   strcpy(currop, "bnei");
                   if(sub == 0)
                     printf("bnei %d r%d %d\n", opr, rs, uimm);
                 }
                 if(reg[rs] != opr){
+                    bcount++;
+                    bpsuccess += (bpflag >= 2 ? 1 : 0);
+                    bp[bpaddr] = taken[bpflag];
                     pc = uimm;
                     if(debug && sub)
                        printf("bnei %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
-                }
-                else{
-                  if(debug && sub)
-                    printf("bnei %d r%d %s(line %d)\n", opr ,rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
-                  pc++;
+                }else{
+                    bpsuccess += (bpflag <= 1 ? 1 : 0);
+                    bp[bpaddr] = nottaken[bpflag];
+                    if(debug && sub)
+                      printf("bnei %d r%d %s(line %d)\n", opr ,rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
+                    pc++;
                 }
                 break;
             case 0b100010:
                 //BLEI
                 opcount[18]++;
+                bopcount++;
+                bpaddr = uimm & bpfilter;
+                bpflag = bp[bpaddr];
                 if(debug){
                   strcpy(currop, "blei");
                   if(sub == 0)
                     printf("blei %d r%d %d\n", opr, rs, uimm);
                 }
                 if(reg[rs] <= opr){
+                    bcount++;
+                    bpsuccess += (bpflag >= 2 ? 1 : 0);
+                    bp[bpaddr] = taken[bpflag];
                     pc = uimm;
                     if(debug && sub)
                        printf("blei %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
-                }
-                else{
-                  if(debug && sub)
-                    printf("blei %d r%d %s(line %d)\n", opr, rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
-                  pc++;
+                }else{
+                    bpsuccess += (bpflag <= 1 ? 1 : 0);
+                    bp[bpaddr] = nottaken[bpflag];
+                    if(debug && sub)
+                      printf("blei %d r%d %s(line %d)\n", opr, rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
+                    pc++;
                 }
                 break;
             case 0b101010:
                 //BGEI
                 opcount[19]++;
+                bopcount++;
+                bpaddr = uimm & bpfilter;
+                bpflag = bp[bpaddr];
                 if(debug){
                   strcpy(currop, "bgei");
                   if(sub == 0)
                     printf("bgei %d r%d %d\n", opr, rs, uimm);
                 }
                 if(reg[rs] >= opr){
+                    bcount++;
+                    bpsuccess += (bpflag >= 2 ? 1 : 0);
+                    bp[bpaddr] = taken[bpflag];
                     pc = uimm;
                     if(debug && sub)
                        printf("bgei %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
-                }
-                else{
-                  if(debug && sub)
-                    printf("bgei %d r%d %s(line %d)\n", opr ,rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
-                  pc++;
+                }else{
+                    bpsuccess += (bpflag <= 1 ? 1 : 0);
+                    bp[bpaddr] = nottaken[bpflag];
+                    if(debug && sub)
+                      printf("bgei %d r%d %s(line %d)\n", opr ,rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
+                    pc++;
                 }
                 break;
             case 0b001111:
@@ -868,15 +923,16 @@ int main (int argc, char *argv[]){
 
 
     //統計機能
-    fprintf(stfp, "動的命令数 %lld\n", dopcount);
+    fprintf(stfp, "<動的命令数>\n%lld\n", dopcount);
 
+    fprintf(stfp, "\n\n<各命令の割合>\n");
     for(int i = 0; i < OPNUM; i++){
-          
-          fprintf(stfp, "%s\t%6.3f\n", opdata[i], opcount[i]/(float)dopcount * 100);
-
+       
+          fprintf(stfp, "%s\t%6.3f\n", opdata[i], (float)opcount[i]*100/(float)dopcount);
+    
     }
 
-    fprintf(stfp, "\n各labelへjump/branch回数\n");
+    fprintf(stfp, "\n\n<各labelへjump/branch回数>\n");
 
     for(int i = 0; i < CODESIZE; i++){
         
@@ -885,8 +941,13 @@ int main (int argc, char *argv[]){
 
     }
 
-    fprintf(stfp, "\nr3 r4の最大値\n");
+    fprintf(stfp, "\n\n<r3 r4の最大値>\n");
     fprintf(stfp, "r3\t%d\nr4\t%d\n", maxr3, maxr4);
+    
+    fprintf(stfp, "\n\n<分岐予測>\n");
+    fprintf(stfp, "実際の分岐割合\t%f\n", (float)bcount*100/(float)bopcount);
+    fprintf(stfp, "分岐予測成功確率\t%f\n", (float)bpsuccess*100/(float)bopcount);
+
 
     if(fclose( fp ) == EOF ){
         fputs( "ファイルクローズに失敗しました。\n", stderr );
