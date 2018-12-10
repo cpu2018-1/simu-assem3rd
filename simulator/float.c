@@ -4217,6 +4217,12 @@ float finv(float f){
     return r;
 }
 
+float fdiv(float a float b){
+
+    return fmul(a, finv(b));
+
+}
+
 float fsqrt(float f){
     unsigned int x,ex,key,h;
     unsigned int xr,corner_flag,ey,my,y;
