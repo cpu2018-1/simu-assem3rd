@@ -29,7 +29,7 @@ char *opdata[OPNUM] = {"lui", "add", "addi", "sub", "sll", "slli", "srl",
                   "srli", "sra", "srai", "j", "jal", "jr", "jalr",
                   "beq", "ble", "beqi", "bnei", "blei", "bgei", "lw", "sw",
                   "flw", "fsw",  "out", "in",
-                  "fadd", "fsub", "fmul", "fdiv", "fsqrt", 
+                  "fadd", "fsub", "fmul", "finv", "fsqrt", 
                   "feq", "flt", "fle", "ftoi", "itof", "flup", 
                   "fneg", "fmvfr", "fmvtr"};
 long long int opcount[OPNUM] = {0};
