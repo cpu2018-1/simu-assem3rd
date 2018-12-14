@@ -667,16 +667,16 @@ int main (int argc, char *argv[]){
                         printf("fmul f%d f%d f%d\n", rd, rs, rt);
                       }
                       break;
-                    case 0b100001:
-                      //FDIV
-                      freg[rd] = fdiv(freg[rs], freg[rt]);
+                    case 0b100000:
+                      //FINV
+                      freg[rd] = finv(freg[rs]);
                       pc++;
                       opcount[29]++;
                       if(debug){
-                        strcpy(currop, "fdiv");
+                        strcpy(currop, "finv");
                         strcpy(currcharg, "freg");
                         currchnum = rd;
-                        printf("fdiv f%d f%d f%d\n", rd, rs, rt);
+                        printf("finv f%d f%d\n", rd, rs);
                       }
                       break;
                     case 0b101000:
@@ -1048,6 +1048,10 @@ void print_info(void){
       }else if(strcmp(comm, "io") == 0){
 
           printf("%d\n", io);
+
+      }else if(strcmp(comm, "cc") == 0){
+
+          printf("%lld\n", dopcount);
 
       }
 
