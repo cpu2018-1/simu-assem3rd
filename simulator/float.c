@@ -3,7 +3,6 @@
 #include "float.h"
 
 //必要に応じて実装を変更してください
-
 float fadd(float a, float b){
 /*
     unsigned int x1,x2,x1a,x2a,s1a,s2a,sy,e1a,e2a,ey,m1a,m2a,my;
@@ -59,6 +58,7 @@ float fadd(float a, float b){
     unsigned int m1_0,m1_1,m1,se1,mya1,my1,ey1,pm,mya2,my2;
     unsigned int flag1,sy,ey,ey2,my,y;
     float r;
+    //下準備
     x1 = *((unsigned int *)&a);
     x2 = *((unsigned int *)&b);
     s1 = x1 >> 31;
@@ -84,6 +84,7 @@ float fadd(float a, float b){
         m1a = mx1;
         m2a = mx2;
     }
+    //path1
     if(mx1 >= mx2) m1_0 = mx1 - mx2;
     else m1_0 = mx2 - mx1;
     m1_1 = ((1 << 24) | (m1a << 1)) - ((1 << 23) | m2a);
@@ -100,7 +101,9 @@ float fadd(float a, float b){
     my1 = (mya1 >> 1) & 0x7fffff;
     if(e1a < se1) ey1 = 0;
     else ey1 = e1a - se1;
-    m2b = ((1 << 24) | (m2a << 1)) >> sm;
+    //path2
+    if(sm > 31) m2b = 0;
+    else m2b = ((1 << 24) | (m2a << 1)) >> sm;
     pm = s1 ^ s2;
     if(pm) mya2 = ((1 << 24) | (m1a << 1)) - m2b;
     else mya2 = ((1 << 24) | (m1a << 1)) + m2b;
@@ -115,7 +118,7 @@ float fadd(float a, float b){
         else ey2 = 0;
         my2 = mya2 & 0x7fffff;
     }
-    if(((sm >> 1) & 0x7f) == 0 && pm == 1) flag1 = 1;
+    if((sm >> 1) == 0 && pm == 1) flag1 = 1;
     else flag1 = 0;
     if((x1 & 0x7fffffff) > (x2 & 0x7fffffff)) sy = s1;
     else sy = s2;
@@ -138,6 +141,7 @@ float fsub(float a, float b){
 }
 
 float fmul(float a, float b){
+    /*
     unsigned int x1,x2,s1,s2,sy,e1,e2,ey,m1,m2,my;
     unsigned int flag,e1a,e2a,eya,y,mya2;
     unsigned long mya;
@@ -168,7 +172,50 @@ float fmul(float a, float b){
     r = *((float *)&y);
 
     return r;
+    */
 
+    unsigned int x1,x2,y;
+    unsigned int s1,s2,sy;
+    unsigned int e1,e2,ey;
+    unsigned int m1,m2,my,myb;
+    unsigned int eya0;
+    unsigned long mya_long,myb_long;
+    float r;
+    x1 = *((unsigned int *)&a);
+    x2 = *((unsigned int *)&b);
+    s1 = x1 >> 31;
+    e1 = (x1 >> 23) & 0xff;
+    m1 = x1 & 0x7fffff;
+    s2 = x2 >> 31;
+    e2 = (x2 >> 23) & 0xff;
+    m2 = x2 & 0x7fffff;
+    sy = s1 ^ s2;
+    mya_long = (unsigned long)((1 << 23) | m1) * (unsigned long)((1 << 23) | m2);
+    if((mya_long >> 47) == 1) myb_long = (mya_long >> 24) & 0x7fffff;
+    else myb_long = (mya_long >> 23) & 0x7fffff;
+    myb = (unsigned int)myb_long;
+    if(((x1 & 0x7fffffff) == 0) || ((x2 & 0x7fffffff) == 0)) eya0 = 0;
+    else eya0 = e1 + e2;
+    if((mya_long >> 47) == 1){
+        if(eya0 >= 126){
+            ey = eya0 - 126;
+            my = myb;
+        } else {
+            ey = 0;
+            my = 0;
+        }
+    } else {
+        if(eya0 >= 127){
+            ey = eya0 - 127;
+            my = myb;
+        } else {
+            ey = 0;
+            my = 0;
+        }
+    }
+    y = (sy << 31) | (ey << 23) | my;
+    r = *((float *)&y);
+    return r;
 }
  
 float finv(float f){
@@ -4290,6 +4337,7 @@ float finv(float f){
     my = (unsigned int)my_long;
     if(253 > ex) ey = 253 - ex;
     else ey = 0;
+    if(ex > 253) my = 0;
     y = (sx << 31) | (ey << 23) | my;
     r = *((float *)&y);
     return r;
@@ -8409,7 +8457,7 @@ float fsqrt(float f){
     if(xr == 0x7fffff || xr == 0x7ffffe || xr == 0x7ffffd) corner_flag = 1;
     else corner_flag = 0;
 
-    if(ex == 0) ey = 0;
+    if((x & 0x7fffffff) == 0) ey = 0;
     else ey = 63 + (ex >> 1) + (ex  & 1) + corner_flag;
     my_extend = ((unsigned long)rtx0 << 14) + (unsigned long)rtx0_inv * (unsigned long)h;
     my_long = my_extend >> 14;
