@@ -5,6 +5,7 @@
 //必要に応じて実装を変更してください
 
 float fadd(float a, float b){
+/*
     unsigned int x1,x2,x1a,x2a,s1a,s2a,sy,e1a,e2a,ey,m1a,m2a,my;
     unsigned int sm,m1b,m2b,mya,se,eya,eyb,myb,y;
     int i,bit;
@@ -50,6 +51,83 @@ float fadd(float a, float b){
     y = (sy << 31) | (ey << 23) | my;
     r = *((float *)&y);
     
+    return r;
+*/
+    unsigned int i,bit;
+    unsigned int x1,x2,s1,s2,e1,e2,mx1,mx2;
+    unsigned int sm1_0,sm1_8,sm,e1a,m1a,m2a,m2b;
+    unsigned int m1_0,m1_1,m1,se1,mya1,my1,ey1,pm,mya2,my2;
+    unsigned int flag1,sy,ey,ey2,my,y;
+    float r;
+    x1 = *((unsigned int *)&a);
+    x2 = *((unsigned int *)&b);
+    s1 = x1 >> 31;
+    e1 = (x1 >> 23) & 0xff;
+    mx1 = x1 & 0x7fffff;
+    s2 = x2 >> 31;
+    e2 = (x2 >> 23) & 0xff;
+    mx2 = x2 & 0x7fffff;
+    if(e1 >= e2){
+        sm = e1 - e2;
+        sm1_8 = 0;
+    }
+    else{
+        sm = e2 - e1;
+        sm1_8 = 1;
+    }
+    if(sm1_8){
+        e1a = e2;
+        m1a = mx2;
+        m2a = mx1;
+    } else {
+        e1a = e1;
+        m1a = mx1;
+        m2a = mx2;
+    }
+    if(mx1 >= mx2) m1_0 = mx1 - mx2;
+    else m1_0 = mx2 - mx1;
+    m1_1 = ((1 << 24) | (m1a << 1)) - ((1 << 23) | m2a);
+    sm1_0 = (e1 ^ e2) & 1;
+    if(sm1_0) m1 = m1_1;
+    else m1 = m1_0 << 1;
+    for(i = 0;i < 25;i++){
+        bit = (m1 >> (24 - i)) & 1;
+        if(bit) break;
+    }
+    if(i == 25) se1 = 255;
+    else se1 = i;
+    mya1 = m1 << se1;
+    my1 = (mya1 >> 1) & 0x7fffff;
+    if(e1a < se1) ey1 = 0;
+    else ey1 = e1a - se1;
+    m2b = ((1 << 24) | (m2a << 1)) >> sm;
+    pm = s1 ^ s2;
+    if(pm) mya2 = ((1 << 24) | (m1a << 1)) - m2b;
+    else mya2 = ((1 << 24) | (m1a << 1)) + m2b;
+    if((mya2 >> 25) & 1){
+        ey2 = e1a + 1;
+        my2 = (mya2 >> 2) & 0x7fffff;
+    } else if((mya2 >> 24) & 1) {
+        ey2 = e1a;
+        my2 = (mya2 >> 1) & 0x7fffff;
+    } else {
+        if(e1a > 1) ey2 = e1a - 1;
+        else ey2 = 0;
+        my2 = mya2 & 0x7fffff;
+    }
+    if(((sm >> 1) & 0x7f) == 0 && pm == 1) flag1 = 1;
+    else flag1 = 0;
+    if((x1 & 0x7fffffff) > (x2 & 0x7fffffff)) sy = s1;
+    else sy = s2;
+    if(flag1){
+        ey = ey1;
+        my = my1;
+    } else {
+        ey = ey2;
+        my = my2;
+    }
+    y = (sy << 31) | (ey << 23) | my;
+    r = *((float *)&y);
     return r;
 }
 
