@@ -4,54 +4,6 @@
 
 //必要に応じて実装を変更してください
 float fadd(float a, float b){
-/*
-    unsigned int x1,x2,x1a,x2a,s1a,s2a,sy,e1a,e2a,ey,m1a,m2a,my;
-    unsigned int sm,m1b,m2b,mya,se,eya,eyb,myb,y;
-    int i,bit;
-    float r;
-
-    x1 = *((unsigned int *)&a);
-    x2 = *((unsigned int *)&b);
-    if((x1 & 0x7fffffff) < (x2 & 0x7fffffff)){
-	x1a = x2;
-	x2a = x1;
-    } else {
-	x1a = x1;
-	x2a = x2;
-    }
-    s1a = x1a >> 31;
-    e1a = (x1a >> 23) & 0xff;
-    m1a = x1a & 0x7fffff;
-    s2a = x2a >> 31;
-    e2a = (x2a >> 23) & 0xff;
-    m2a = x2a & 0x7fffff;
-    sm = e1a - e2a;
-    m1b = (1 << 24) | (m1a << 1);
-    if(sm < 32) m2b = ((1 << 24) | (m2a << 1)) >> sm;
-    else m2b = 0;
-    if(s1a == s2a) mya = m1b + m2b;
-    else mya = m1b - m2b;
-    for(i = 0;i < 26;i++){
-	bit = (mya >> (25 - i)) & 1;
-	if(bit == 1) break;
-    }
-    if(i == 26) se = 255;
-    else se = i;
-    sy = s1a;
-    eya = e1a + 1;
-    if(eya > se) eyb = eya - se;
-    else eyb = 0;
-    if(e2a == 0) ey = e1a;
-    else ey = eyb;
-    if (se < 32) myb = mya << se;
-    else myb = 0;
-    if(e2a == 0) my = m1a;
-    else my = (myb >> 2) & 0x7fffff;
-    y = (sy << 31) | (ey << 23) | my;
-    r = *((float *)&y);
-    
-    return r;
-*/
     unsigned int i,bit;
     unsigned int x1,x2,s1,s2,e1,e2,mx1,mx2;
     unsigned int sm1_0,sm1_8,sm,e1a,m1a,m2a,m2b;
@@ -141,45 +93,12 @@ float fsub(float a, float b){
 }
 
 float fmul(float a, float b){
-    /*
-    unsigned int x1,x2,s1,s2,sy,e1,e2,ey,m1,m2,my;
-    unsigned int flag,e1a,e2a,eya,y,mya2;
-    unsigned long mya;
-    float r;
-    x1 = *((unsigned int *)&a);
-    x2 = *((unsigned int *)&b);
-    s1 = x1 >> 31;
-    e1 = (x1 & 0x7f800000) >> 23;
-    m1 = x1 & 0x7fffff;
-    s2 = x2 >> 31;
-    e2 = (x2 & 0x7f800000) >> 23;
-    m2 = x2 & 0x7fffff;
-    sy = s1 ^ s2;
-    mya = (unsigned long)((1 << 23) | m1) * (unsigned long)((1 << 23) | m2);
-    mya = mya >> 20;
-    mya2 = (unsigned int)mya;
-    flag = (mya2 >> 27) & 1;
-    if(flag == 1) my = (mya2 & 0x7ffffff) >> 4;
-    else my = (mya2 & 0x3ffffff) >> 3;
-    if(e2 == 0) e1a = 0;
-    else e1a = e1;
-    if(e1 == 0) e2a = 0;
-    else e2a = e2;
-    eya = e1a + e2a + flag;
-    if(eya > 127) ey = eya - 127;
-    else ey = 0;
-    y = (sy << 31) | (ey << 23) | my;
-    r = *((float *)&y);
-
-    return r;
-    */
-
     unsigned int x1,x2,y;
     unsigned int s1,s2,sy;
     unsigned int e1,e2,ey;
-    unsigned int m1,m2,my,myb;
-    unsigned int eya0;
-    unsigned long mya_long,myb_long;
+    unsigned int m1,m2,my;
+    unsigned int eya0,ey0,ey1;
+    unsigned long mya_long,my_long;
     float r;
     x1 = *((unsigned int *)&a);
     x2 = *((unsigned int *)&b);
@@ -191,28 +110,17 @@ float fmul(float a, float b){
     m2 = x2 & 0x7fffff;
     sy = s1 ^ s2;
     mya_long = (unsigned long)((1 << 23) | m1) * (unsigned long)((1 << 23) | m2);
-    if((mya_long >> 47) == 1) myb_long = (mya_long >> 24) & 0x7fffff;
-    else myb_long = (mya_long >> 23) & 0x7fffff;
-    myb = (unsigned int)myb_long;
+    if((mya_long >> 47) == 1) my_long = (mya_long >> 24) & 0x7fffff;
+    else my_long = (mya_long >> 23) & 0x7fffff;
+    my = (unsigned int)my_long;
     if(((x1 & 0x7fffffff) == 0) || ((x2 & 0x7fffffff) == 0)) eya0 = 0;
     else eya0 = e1 + e2;
-    if((mya_long >> 47) == 1){
-        if(eya0 >= 126){
-            ey = (eya0 - 126) & 0xff;
-            my = myb;
-        } else {
-            ey = 0;
-            my = 0;
-        }
-    } else {
-        if(eya0 >= 127){
-            ey = (eya0 - 127) & 0xff;
-            my = myb;
-        } else {
-            ey = 0;
-            my = 0;
-        }
-    }
+    if(eya0 > 127) ey0 = (eya0 - 127) & 0xff;
+    else ey0 = 0;
+    if(eya0 > 126) ey1 = (eya0 - 126) & 0xff;
+    else ey1 = 0;
+    if((mya_long >> 47) == 1) ey = ey1;
+    else ey = ey0;
     y = (sy << 31) | (ey << 23) | my;
     r = *((float *)&y);
     return r;
@@ -4337,7 +4245,6 @@ float finv(float f){
     my = (unsigned int)my_long;
     if(253 > ex) ey = 253 - ex;
     else ey = 0;
-    if(ex > 253) my = 0;
     y = (sx << 31) | (ey << 23) | my;
     r = *((float *)&y);
     return r;
