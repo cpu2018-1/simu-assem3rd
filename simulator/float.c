@@ -3,53 +3,86 @@
 #include "float.h"
 
 //必要に応じて実装を変更してください
-
 float fadd(float a, float b){
-    unsigned int x1,x2,x1a,x2a,s1a,s2a,sy,e1a,e2a,ey,m1a,m2a,my;
-    unsigned int sm,m1b,m2b,mya,se,eya,eyb,myb,y;
-    int i,bit;
+    unsigned int i,bit;
+    unsigned int x1,x2,s1,s2,e1,e2,mx1,mx2;
+    unsigned int sm1_0,sm1_8,sm,e1a,m1a,m2a,m2b;
+    unsigned int m1_0,m1_1,m1,se1,mya1,my1,ey1,pm,mya2,my2;
+    unsigned int flag1,sy,ey,ey2,my,y;
     float r;
-
+    //下準備
     x1 = *((unsigned int *)&a);
     x2 = *((unsigned int *)&b);
-    if((x1 & 0x7fffffff) < (x2 & 0x7fffffff)){
-	x1a = x2;
-	x2a = x1;
+    s1 = x1 >> 31;
+    e1 = (x1 >> 23) & 0xff;
+    mx1 = x1 & 0x7fffff;
+    s2 = x2 >> 31;
+    e2 = (x2 >> 23) & 0xff;
+    mx2 = x2 & 0x7fffff;
+    if(e1 >= e2){
+        sm = e1 - e2;
+        sm1_8 = 0;
+    }
+    else{
+        sm = e2 - e1;
+        sm1_8 = 1;
+    }
+    if(sm1_8){
+        e1a = e2;
+        m1a = mx2;
+        m2a = mx1;
     } else {
-	x1a = x1;
-	x2a = x2;
+        e1a = e1;
+        m1a = mx1;
+        m2a = mx2;
     }
-    s1a = x1a >> 31;
-    e1a = (x1a >> 23) & 0xff;
-    m1a = x1a & 0x7fffff;
-    s2a = x2a >> 31;
-    e2a = (x2a >> 23) & 0xff;
-    m2a = x2a & 0x7fffff;
-    sm = e1a - e2a;
-    m1b = (1 << 24) | (m1a << 1);
-    if(sm < 32) m2b = ((1 << 24) | (m2a << 1)) >> sm;
-    else m2b = 0;
-    if(s1a == s2a) mya = m1b + m2b;
-    else mya = m1b - m2b;
-    for(i = 0;i < 26;i++){
-	bit = (mya >> (25 - i)) & 1;
-	if(bit == 1) break;
+    //path1
+    if(mx1 >= mx2) m1_0 = mx1 - mx2;
+    else m1_0 = mx2 - mx1;
+    m1_1 = ((1 << 24) | (m1a << 1)) - ((1 << 23) | m2a);
+    sm1_0 = (e1 ^ e2) & 1;
+    if(sm1_0) m1 = m1_1;
+    else m1 = m1_0 << 1;
+    for(i = 0;i < 25;i++){
+        bit = (m1 >> (24 - i)) & 1;
+        if(bit) break;
     }
-    if(i == 26) se = 255;
-    else se = i;
-    sy = s1a;
-    eya = e1a + 1;
-    if(eya > se) eyb = eya - se;
-    else eyb = 0;
-    if(e2a == 0) ey = e1a;
-    else ey = eyb;
-    if (se < 32) myb = mya << se;
-    else myb = 0;
-    if(e2a == 0) my = m1a;
-    else my = (myb >> 2) & 0x7fffff;
+    if(i == 25) se1 = 255;
+    else se1 = i;
+    mya1 = m1 << se1;
+    my1 = (mya1 >> 1) & 0x7fffff;
+    if(e1a < se1) ey1 = 0;
+    else ey1 = e1a - se1;
+    //path2
+    if(sm > 31) m2b = 0;
+    else m2b = ((1 << 24) | (m2a << 1)) >> sm;
+    pm = s1 ^ s2;
+    if(pm) mya2 = ((1 << 24) | (m1a << 1)) - m2b;
+    else mya2 = ((1 << 24) | (m1a << 1)) + m2b;
+    if((mya2 >> 25) & 1){
+        ey2 = e1a + 1;
+        my2 = (mya2 >> 2) & 0x7fffff;
+    } else if((mya2 >> 24) & 1) {
+        ey2 = e1a;
+        my2 = (mya2 >> 1) & 0x7fffff;
+    } else {
+        if(e1a > 1) ey2 = e1a - 1;
+        else ey2 = 0;
+        my2 = mya2 & 0x7fffff;
+    }
+    if((sm >> 1) == 0 && pm == 1) flag1 = 1;
+    else flag1 = 0;
+    if((x1 & 0x7fffffff) > (x2 & 0x7fffffff)) sy = s1;
+    else sy = s2;
+    if(flag1){
+        ey = ey1;
+        my = my1;
+    } else {
+        ey = ey2;
+        my = my2;
+    }
     y = (sy << 31) | (ey << 23) | my;
     r = *((float *)&y);
-    
     return r;
 }
 
@@ -60,37 +93,37 @@ float fsub(float a, float b){
 }
 
 float fmul(float a, float b){
-    unsigned int x1,x2,s1,s2,sy,e1,e2,ey,m1,m2,my;
-    unsigned int flag,e1a,e2a,eya,y,mya2;
-    unsigned long mya;
+    unsigned int x1,x2,y;
+    unsigned int s1,s2,sy;
+    unsigned int e1,e2,ey;
+    unsigned int m1,m2,my;
+    unsigned int eya0,ey0,ey1;
+    unsigned long mya_long,my_long;
     float r;
     x1 = *((unsigned int *)&a);
     x2 = *((unsigned int *)&b);
     s1 = x1 >> 31;
-    e1 = (x1 & 0x7f800000) >> 23;
+    e1 = (x1 >> 23) & 0xff;
     m1 = x1 & 0x7fffff;
     s2 = x2 >> 31;
-    e2 = (x2 & 0x7f800000) >> 23;
+    e2 = (x2 >> 23) & 0xff;
     m2 = x2 & 0x7fffff;
     sy = s1 ^ s2;
-    mya = (unsigned long)((1 << 23) | m1) * (unsigned long)((1 << 23) | m2);
-    mya = mya >> 20;
-    mya2 = (unsigned int)mya;
-    flag = (mya2 >> 27) & 1;
-    if(flag == 1) my = (mya2 & 0x7ffffff) >> 4;
-    else my = (mya2 & 0x3ffffff) >> 3;
-    if(e2 == 0) e1a = 0;
-    else e1a = e1;
-    if(e1 == 0) e2a = 0;
-    else e2a = e2;
-    eya = e1a + e2a + flag;
-    if(eya > 127) ey = eya - 127;
-    else ey = 0;
+    mya_long = (unsigned long)((1 << 23) | m1) * (unsigned long)((1 << 23) | m2);
+    if((mya_long >> 47) == 1) my_long = (mya_long >> 24) & 0x7fffff;
+    else my_long = (mya_long >> 23) & 0x7fffff;
+    my = (unsigned int)my_long;
+    if(((x1 & 0x7fffffff) == 0) || ((x2 & 0x7fffffff) == 0)) eya0 = 0;
+    else eya0 = e1 + e2;
+    if(eya0 > 127) ey0 = (eya0 - 127) & 0xff;
+    else ey0 = 0;
+    if(eya0 > 126) ey1 = (eya0 - 126) & 0xff;
+    else ey1 = 0;
+    if((mya_long >> 47) == 1) ey = ey1;
+    else ey = ey0;
     y = (sy << 31) | (ey << 23) | my;
     r = *((float *)&y);
-
     return r;
-
 }
  
 float finv(float f){
@@ -4217,4125 +4250,2075 @@ float finv(float f){
     return r;
 }
 
-
 float fsqrt(float f){
-    unsigned int x,ex,key,h;
-    unsigned int xr,corner_flag,ey,my,y;
-    unsigned int rtx0,rtx0_inv;
-    unsigned long my_extend,my_long;
+    unsigned int x,ex,y,my;
+    unsigned int key,pm,h;
+    unsigned int rtx0,rtx0_inv,ey,noth;
+    unsigned long my_extend1,my_extend2,my_long;
     float r;
     x = *((unsigned int *)&f);
     ex = (x >> 23) & 0xff;
-    key = (x >> 14) & 0x3ff;
+    key = (x >> 15) & 0x1ff;
+    pm = (x >> 14) & 1;
     h = x & 0x3fff;
+    noth = (~h) & 0x3fff;
     switch(key){
-        case 512:
-            rtx0     = 0;
-            rtx0_inv = 4096;
-            break;
-        case 513:
-            rtx0     = 8188;
+        case 256:
+            rtx0     = 8185;
             rtx0_inv = 8184;
             break;
-        case 514:
-            rtx0     = 16368;
-            rtx0_inv = 8176;
-            break;
-        case 515:
-            rtx0     = 24540;
+        case 257:
+            rtx0     = 24537;
             rtx0_inv = 8168;
             break;
-        case 516:
-            rtx0     = 32704;
-            rtx0_inv = 8160;
-            break;
-        case 517:
-            rtx0     = 40860;
+        case 258:
+            rtx0     = 40857;
             rtx0_inv = 8152;
             break;
-        case 518:
-            rtx0     = 49009;
-            rtx0_inv = 8144;
-            break;
-        case 519:
-            rtx0     = 57149;
+        case 259:
+            rtx0     = 57146;
             rtx0_inv = 8137;
             break;
-        case 520:
-            rtx0     = 65282;
-            rtx0_inv = 8129;
-            break;
-        case 521:
-            rtx0     = 73407;
+        case 260:
+            rtx0     = 73404;
             rtx0_inv = 8121;
             break;
-        case 522:
-            rtx0     = 81524;
-            rtx0_inv = 8113;
-            break;
-        case 523:
-            rtx0     = 89633;
+        case 261:
+            rtx0     = 89630;
             rtx0_inv = 8105;
             break;
-        case 524:
-            rtx0     = 97735;
-            rtx0_inv = 8098;
-            break;
-        case 525:
-            rtx0     = 105828;
+        case 262:
+            rtx0     = 105825;
             rtx0_inv = 8090;
             break;
-        case 526:
-            rtx0     = 113915;
-            rtx0_inv = 8082;
-            break;
-        case 527:
-            rtx0     = 121993;
+        case 263:
+            rtx0     = 121990;
             rtx0_inv = 8075;
             break;
-        case 528:
-            rtx0     = 130064;
-            rtx0_inv = 8067;
-            break;
-        case 529:
-            rtx0     = 138127;
+        case 264:
+            rtx0     = 138124;
             rtx0_inv = 8059;
             break;
-        case 530:
-            rtx0     = 146182;
-            rtx0_inv = 8052;
-            break;
-        case 531:
-            rtx0     = 154230;
+        case 265:
+            rtx0     = 154227;
             rtx0_inv = 8044;
             break;
-        case 532:
-            rtx0     = 162271;
-            rtx0_inv = 8037;
-            break;
-        case 533:
-            rtx0     = 170303;
+        case 266:
+            rtx0     = 170300;
             rtx0_inv = 8029;
             break;
-        case 534:
-            rtx0     = 178329;
-            rtx0_inv = 8021;
-            break;
-        case 535:
-            rtx0     = 186346;
+        case 267:
+            rtx0     = 186343;
             rtx0_inv = 8014;
             break;
-        case 536:
-            rtx0     = 194356;
-            rtx0_inv = 8006;
-            break;
-        case 537:
-            rtx0     = 202359;
+        case 268:
+            rtx0     = 202356;
             rtx0_inv = 7999;
             break;
-        case 538:
-            rtx0     = 210355;
-            rtx0_inv = 7992;
-            break;
-        case 539:
-            rtx0     = 218342;
+        case 269:
+            rtx0     = 218339;
             rtx0_inv = 7984;
             break;
-        case 540:
-            rtx0     = 226323;
-            rtx0_inv = 7977;
-            break;
-        case 541:
-            rtx0     = 234296;
+        case 270:
+            rtx0     = 234293;
             rtx0_inv = 7969;
             break;
-        case 542:
-            rtx0     = 242262;
-            rtx0_inv = 7962;
-            break;
-        case 543:
-            rtx0     = 250220;
+        case 271:
+            rtx0     = 250217;
             rtx0_inv = 7955;
             break;
-        case 544:
-            rtx0     = 258171;
-            rtx0_inv = 7947;
-            break;
-        case 545:
-            rtx0     = 266115;
+        case 272:
+            rtx0     = 266112;
             rtx0_inv = 7940;
             break;
-        case 546:
-            rtx0     = 274051;
-            rtx0_inv = 7933;
-            break;
-        case 547:
-            rtx0     = 281981;
+        case 273:
+            rtx0     = 281978;
             rtx0_inv = 7926;
             break;
-        case 548:
-            rtx0     = 289903;
-            rtx0_inv = 7918;
-            break;
-        case 549:
-            rtx0     = 297817;
+        case 274:
+            rtx0     = 297814;
             rtx0_inv = 7911;
             break;
-        case 550:
-            rtx0     = 305725;
-            rtx0_inv = 7904;
-            break;
-        case 551:
-            rtx0     = 313625;
+        case 275:
+            rtx0     = 313622;
             rtx0_inv = 7897;
             break;
-        case 552:
-            rtx0     = 321518;
-            rtx0_inv = 7890;
-            break;
-        case 553:
-            rtx0     = 329404;
+        case 276:
+            rtx0     = 329401;
             rtx0_inv = 7882;
             break;
-        case 554:
-            rtx0     = 337283;
-            rtx0_inv = 7875;
-            break;
-        case 555:
-            rtx0     = 345155;
+        case 277:
+            rtx0     = 345152;
             rtx0_inv = 7868;
             break;
-        case 556:
-            rtx0     = 353020;
-            rtx0_inv = 7861;
-            break;
-        case 557:
-            rtx0     = 360878;
+        case 278:
+            rtx0     = 360875;
             rtx0_inv = 7854;
             break;
-        case 558:
-            rtx0     = 368728;
-            rtx0_inv = 7847;
-            break;
-        case 559:
-            rtx0     = 376572;
+        case 279:
+            rtx0     = 376569;
             rtx0_inv = 7840;
             break;
-        case 560:
-            rtx0     = 384408;
-            rtx0_inv = 7833;
-            break;
-        case 561:
-            rtx0     = 392238;
+        case 280:
+            rtx0     = 392235;
             rtx0_inv = 7826;
             break;
-        case 562:
-            rtx0     = 400060;
-            rtx0_inv = 7819;
-            break;
-        case 563:
-            rtx0     = 407876;
+        case 281:
+            rtx0     = 407873;
             rtx0_inv = 7812;
             break;
-        case 564:
-            rtx0     = 415685;
-            rtx0_inv = 7805;
-            break;
-        case 565:
-            rtx0     = 423486;
+        case 282:
+            rtx0     = 423483;
             rtx0_inv = 7798;
             break;
-        case 566:
-            rtx0     = 431281;
-            rtx0_inv = 7791;
-            break;
-        case 567:
-            rtx0     = 439069;
+        case 283:
+            rtx0     = 439066;
             rtx0_inv = 7785;
             break;
-        case 568:
-            rtx0     = 446850;
-            rtx0_inv = 7778;
-            break;
-        case 569:
-            rtx0     = 454625;
+        case 284:
+            rtx0     = 454622;
             rtx0_inv = 7771;
             break;
-        case 570:
-            rtx0     = 462392;
-            rtx0_inv = 7764;
-            break;
-        case 571:
-            rtx0     = 470153;
+        case 285:
+            rtx0     = 470150;
             rtx0_inv = 7757;
             break;
-        case 572:
-            rtx0     = 477907;
-            rtx0_inv = 7750;
-            break;
-        case 573:
-            rtx0     = 485654;
+        case 286:
+            rtx0     = 485651;
             rtx0_inv = 7744;
             break;
-        case 574:
-            rtx0     = 493394;
-            rtx0_inv = 7737;
-            break;
-        case 575:
-            rtx0     = 501128;
+        case 287:
+            rtx0     = 501125;
             rtx0_inv = 7730;
             break;
-        case 576:
-            rtx0     = 508854;
-            rtx0_inv = 7723;
-            break;
-        case 577:
-            rtx0     = 516575;
+        case 288:
+            rtx0     = 516572;
             rtx0_inv = 7717;
             break;
-        case 578:
-            rtx0     = 524288;
-            rtx0_inv = 7710;
-            break;
-        case 579:
-            rtx0     = 531995;
+        case 289:
+            rtx0     = 531992;
             rtx0_inv = 7703;
             break;
-        case 580:
-            rtx0     = 539695;
-            rtx0_inv = 7697;
-            break;
-        case 581:
-            rtx0     = 547388;
+        case 290:
+            rtx0     = 547385;
             rtx0_inv = 7690;
             break;
-        case 582:
-            rtx0     = 555075;
-            rtx0_inv = 7684;
-            break;
-        case 583:
-            rtx0     = 562756;
+        case 291:
+            rtx0     = 562753;
             rtx0_inv = 7677;
             break;
-        case 584:
-            rtx0     = 570429;
-            rtx0_inv = 7670;
-            break;
-        case 585:
-            rtx0     = 578096;
+        case 292:
+            rtx0     = 578093;
             rtx0_inv = 7664;
             break;
-        case 586:
-            rtx0     = 585757;
-            rtx0_inv = 7657;
-            break;
-        case 587:
-            rtx0     = 593411;
+        case 293:
+            rtx0     = 593408;
             rtx0_inv = 7651;
             break;
-        case 588:
-            rtx0     = 601059;
-            rtx0_inv = 7644;
-            break;
-        case 589:
-            rtx0     = 608700;
+        case 294:
+            rtx0     = 608697;
             rtx0_inv = 7638;
             break;
-        case 590:
-            rtx0     = 616334;
-            rtx0_inv = 7631;
-            break;
-        case 591:
-            rtx0     = 623962;
+        case 295:
+            rtx0     = 623959;
             rtx0_inv = 7625;
             break;
-        case 592:
-            rtx0     = 631584;
-            rtx0_inv = 7618;
-            break;
-        case 593:
-            rtx0     = 639199;
+        case 296:
+            rtx0     = 639196;
             rtx0_inv = 7612;
             break;
-        case 594:
-            rtx0     = 646808;
-            rtx0_inv = 7606;
-            break;
-        case 595:
-            rtx0     = 654410;
+        case 297:
+            rtx0     = 654407;
             rtx0_inv = 7599;
             break;
-        case 596:
-            rtx0     = 662006;
-            rtx0_inv = 7593;
-            break;
-        case 597:
-            rtx0     = 669596;
+        case 298:
+            rtx0     = 669593;
             rtx0_inv = 7586;
             break;
-        case 598:
-            rtx0     = 677179;
-            rtx0_inv = 7580;
-            break;
-        case 599:
-            rtx0     = 684756;
+        case 299:
+            rtx0     = 684753;
             rtx0_inv = 7574;
             break;
-        case 600:
-            rtx0     = 692327;
-            rtx0_inv = 7567;
-            break;
-        case 601:
-            rtx0     = 699891;
+        case 300:
+            rtx0     = 699888;
             rtx0_inv = 7561;
             break;
-        case 602:
-            rtx0     = 707449;
-            rtx0_inv = 7555;
-            break;
-        case 603:
-            rtx0     = 715001;
+        case 301:
+            rtx0     = 714998;
             rtx0_inv = 7549;
             break;
-        case 604:
-            rtx0     = 722546;
-            rtx0_inv = 7542;
-            break;
-        case 605:
-            rtx0     = 730085;
+        case 302:
+            rtx0     = 730082;
             rtx0_inv = 7536;
             break;
-        case 606:
-            rtx0     = 737618;
-            rtx0_inv = 7530;
-            break;
-        case 607:
-            rtx0     = 745145;
+        case 303:
+            rtx0     = 745142;
             rtx0_inv = 7524;
             break;
-        case 608:
-            rtx0     = 752666;
-            rtx0_inv = 7517;
-            break;
-        case 609:
-            rtx0     = 760180;
+        case 304:
+            rtx0     = 760177;
             rtx0_inv = 7511;
             break;
-        case 610:
-            rtx0     = 767688;
-            rtx0_inv = 7505;
-            break;
-        case 611:
-            rtx0     = 775190;
+        case 305:
+            rtx0     = 775187;
             rtx0_inv = 7499;
             break;
-        case 612:
-            rtx0     = 782686;
-            rtx0_inv = 7493;
-            break;
-        case 613:
-            rtx0     = 790176;
+        case 306:
+            rtx0     = 790173;
             rtx0_inv = 7487;
             break;
-        case 614:
-            rtx0     = 797660;
-            rtx0_inv = 7481;
-            break;
-        case 615:
-            rtx0     = 805138;
+        case 307:
+            rtx0     = 805135;
             rtx0_inv = 7475;
             break;
-        case 616:
-            rtx0     = 812609;
-            rtx0_inv = 7469;
-            break;
-        case 617:
-            rtx0     = 820075;
+        case 308:
+            rtx0     = 820072;
             rtx0_inv = 7462;
             break;
-        case 618:
-            rtx0     = 827534;
-            rtx0_inv = 7456;
-            break;
-        case 619:
-            rtx0     = 834987;
+        case 309:
+            rtx0     = 834984;
             rtx0_inv = 7450;
             break;
-        case 620:
-            rtx0     = 842435;
-            rtx0_inv = 7444;
-            break;
-        case 621:
-            rtx0     = 849876;
+        case 310:
+            rtx0     = 849873;
             rtx0_inv = 7438;
             break;
-        case 622:
-            rtx0     = 857312;
-            rtx0_inv = 7432;
-            break;
-        case 623:
-            rtx0     = 864741;
+        case 311:
+            rtx0     = 864738;
             rtx0_inv = 7426;
             break;
-        case 624:
-            rtx0     = 872164;
-            rtx0_inv = 7420;
-            break;
-        case 625:
-            rtx0     = 879582;
+        case 312:
+            rtx0     = 879579;
             rtx0_inv = 7415;
             break;
-        case 626:
-            rtx0     = 886994;
-            rtx0_inv = 7409;
-            break;
-        case 627:
-            rtx0     = 894399;
+        case 313:
+            rtx0     = 894396;
             rtx0_inv = 7403;
             break;
-        case 628:
-            rtx0     = 901799;
-            rtx0_inv = 7397;
-            break;
-        case 629:
-            rtx0     = 909193;
+        case 314:
+            rtx0     = 909190;
             rtx0_inv = 7391;
             break;
-        case 630:
-            rtx0     = 916581;
-            rtx0_inv = 7385;
-            break;
-        case 631:
-            rtx0     = 923963;
+        case 315:
+            rtx0     = 923960;
             rtx0_inv = 7379;
             break;
-        case 632:
-            rtx0     = 931339;
-            rtx0_inv = 7373;
-            break;
-        case 633:
-            rtx0     = 938710;
+        case 316:
+            rtx0     = 938707;
             rtx0_inv = 7368;
             break;
-        case 634:
-            rtx0     = 946074;
-            rtx0_inv = 7362;
-            break;
-        case 635:
-            rtx0     = 953433;
+        case 317:
+            rtx0     = 953430;
             rtx0_inv = 7356;
             break;
-        case 636:
-            rtx0     = 960786;
-            rtx0_inv = 7350;
-            break;
-        case 637:
-            rtx0     = 968134;
+        case 318:
+            rtx0     = 968131;
             rtx0_inv = 7344;
             break;
-        case 638:
-            rtx0     = 975475;
-            rtx0_inv = 7339;
-            break;
-        case 639:
-            rtx0     = 982811;
+        case 319:
+            rtx0     = 982808;
             rtx0_inv = 7333;
             break;
-        case 640:
-            rtx0     = 990141;
-            rtx0_inv = 7327;
-            break;
-        case 641:
-            rtx0     = 997465;
+        case 320:
+            rtx0     = 997462;
             rtx0_inv = 7321;
             break;
-        case 642:
-            rtx0     = 1004784;
-            rtx0_inv = 7316;
-            break;
-        case 643:
-            rtx0     = 1012097;
+        case 321:
+            rtx0     = 1012094;
             rtx0_inv = 7310;
             break;
-        case 644:
-            rtx0     = 1019404;
-            rtx0_inv = 7304;
-            break;
-        case 645:
-            rtx0     = 1026705;
+        case 322:
+            rtx0     = 1026702;
             rtx0_inv = 7299;
             break;
-        case 646:
-            rtx0     = 1034001;
-            rtx0_inv = 7293;
-            break;
-        case 647:
-            rtx0     = 1041291;
+        case 323:
+            rtx0     = 1041288;
             rtx0_inv = 7287;
             break;
-        case 648:
-            rtx0     = 1048576;
-            rtx0_inv = 7282;
-            break;
-        case 649:
-            rtx0     = 1055855;
+        case 324:
+            rtx0     = 1055852;
             rtx0_inv = 7276;
             break;
-        case 650:
-            rtx0     = 1063128;
-            rtx0_inv = 7271;
-            break;
-        case 651:
-            rtx0     = 1070396;
+        case 325:
+            rtx0     = 1070393;
             rtx0_inv = 7265;
             break;
-        case 652:
-            rtx0     = 1077658;
-            rtx0_inv = 7259;
-            break;
-        case 653:
-            rtx0     = 1084915;
+        case 326:
+            rtx0     = 1084912;
             rtx0_inv = 7254;
             break;
-        case 654:
-            rtx0     = 1092166;
-            rtx0_inv = 7248;
-            break;
-        case 655:
-            rtx0     = 1099412;
+        case 327:
+            rtx0     = 1099409;
             rtx0_inv = 7243;
             break;
-        case 656:
-            rtx0     = 1106652;
-            rtx0_inv = 7237;
-            break;
-        case 657:
-            rtx0     = 1113886;
+        case 328:
+            rtx0     = 1113883;
             rtx0_inv = 7232;
             break;
-        case 658:
-            rtx0     = 1121115;
-            rtx0_inv = 7226;
-            break;
-        case 659:
-            rtx0     = 1128338;
+        case 329:
+            rtx0     = 1128335;
             rtx0_inv = 7221;
             break;
-        case 660:
-            rtx0     = 1135556;
-            rtx0_inv = 7215;
-            break;
-        case 661:
-            rtx0     = 1142769;
+        case 330:
+            rtx0     = 1142766;
             rtx0_inv = 7210;
             break;
-        case 662:
-            rtx0     = 1149976;
-            rtx0_inv = 7204;
-            break;
-        case 663:
-            rtx0     = 1157178;
+        case 331:
+            rtx0     = 1157175;
             rtx0_inv = 7199;
             break;
-        case 664:
-            rtx0     = 1164374;
-            rtx0_inv = 7194;
-            break;
-        case 665:
-            rtx0     = 1171565;
+        case 332:
+            rtx0     = 1171562;
             rtx0_inv = 7188;
             break;
-        case 666:
-            rtx0     = 1178750;
-            rtx0_inv = 7183;
-            break;
-        case 667:
-            rtx0     = 1185930;
+        case 333:
+            rtx0     = 1185927;
             rtx0_inv = 7177;
             break;
-        case 668:
-            rtx0     = 1193105;
-            rtx0_inv = 7172;
-            break;
-        case 669:
-            rtx0     = 1200274;
+        case 334:
+            rtx0     = 1200271;
             rtx0_inv = 7167;
             break;
-        case 670:
-            rtx0     = 1207438;
-            rtx0_inv = 7161;
-            break;
-        case 671:
-            rtx0     = 1214597;
+        case 335:
+            rtx0     = 1214594;
             rtx0_inv = 7156;
             break;
-        case 672:
-            rtx0     = 1221750;
-            rtx0_inv = 7151;
-            break;
-        case 673:
-            rtx0     = 1228898;
+        case 336:
+            rtx0     = 1228895;
             rtx0_inv = 7145;
             break;
-        case 674:
-            rtx0     = 1236040;
-            rtx0_inv = 7140;
-            break;
-        case 675:
-            rtx0     = 1243178;
+        case 337:
+            rtx0     = 1243175;
             rtx0_inv = 7135;
             break;
-        case 676:
-            rtx0     = 1250310;
-            rtx0_inv = 7129;
-            break;
-        case 677:
-            rtx0     = 1257436;
+        case 338:
+            rtx0     = 1257433;
             rtx0_inv = 7124;
             break;
-        case 678:
-            rtx0     = 1264558;
-            rtx0_inv = 7119;
-            break;
-        case 679:
-            rtx0     = 1271674;
+        case 339:
+            rtx0     = 1271671;
             rtx0_inv = 7114;
             break;
-        case 680:
-            rtx0     = 1278785;
-            rtx0_inv = 7108;
-            break;
-        case 681:
-            rtx0     = 1285891;
+        case 340:
+            rtx0     = 1285888;
             rtx0_inv = 7103;
             break;
-        case 682:
-            rtx0     = 1292991;
-            rtx0_inv = 7098;
-            break;
-        case 683:
-            rtx0     = 1300087;
+        case 341:
+            rtx0     = 1300084;
             rtx0_inv = 7093;
             break;
-        case 684:
-            rtx0     = 1307177;
-            rtx0_inv = 7088;
-            break;
-        case 685:
-            rtx0     = 1314262;
+        case 342:
+            rtx0     = 1314259;
             rtx0_inv = 7082;
             break;
-        case 686:
-            rtx0     = 1321342;
-            rtx0_inv = 7077;
-            break;
-        case 687:
-            rtx0     = 1328416;
+        case 343:
+            rtx0     = 1328413;
             rtx0_inv = 7072;
             break;
-        case 688:
-            rtx0     = 1335486;
-            rtx0_inv = 7067;
-            break;
-        case 689:
-            rtx0     = 1342550;
+        case 344:
+            rtx0     = 1342547;
             rtx0_inv = 7062;
             break;
-        case 690:
-            rtx0     = 1349609;
-            rtx0_inv = 7057;
-            break;
-        case 691:
-            rtx0     = 1356664;
+        case 345:
+            rtx0     = 1356661;
             rtx0_inv = 7052;
             break;
-        case 692:
-            rtx0     = 1363713;
-            rtx0_inv = 7046;
-            break;
-        case 693:
-            rtx0     = 1370756;
+        case 346:
+            rtx0     = 1370753;
             rtx0_inv = 7041;
             break;
-        case 694:
-            rtx0     = 1377795;
-            rtx0_inv = 7036;
-            break;
-        case 695:
-            rtx0     = 1384829;
+        case 347:
+            rtx0     = 1384826;
             rtx0_inv = 7031;
             break;
-        case 696:
-            rtx0     = 1391858;
-            rtx0_inv = 7026;
-            break;
-        case 697:
-            rtx0     = 1398881;
+        case 348:
+            rtx0     = 1398878;
             rtx0_inv = 7021;
             break;
-        case 698:
-            rtx0     = 1405900;
-            rtx0_inv = 7016;
-            break;
-        case 699:
-            rtx0     = 1412914;
+        case 349:
+            rtx0     = 1412911;
             rtx0_inv = 7011;
             break;
-        case 700:
-            rtx0     = 1419922;
-            rtx0_inv = 7006;
-            break;
-        case 701:
-            rtx0     = 1426926;
+        case 350:
+            rtx0     = 1426923;
             rtx0_inv = 7001;
             break;
-        case 702:
-            rtx0     = 1433925;
-            rtx0_inv = 6996;
-            break;
-        case 703:
-            rtx0     = 1440918;
+        case 351:
+            rtx0     = 1440915;
             rtx0_inv = 6991;
             break;
-        case 704:
-            rtx0     = 1447907;
-            rtx0_inv = 6986;
-            break;
-        case 705:
-            rtx0     = 1454890;
+        case 352:
+            rtx0     = 1454887;
             rtx0_inv = 6981;
             break;
-        case 706:
-            rtx0     = 1461869;
-            rtx0_inv = 6976;
-            break;
-        case 707:
-            rtx0     = 1468843;
+        case 353:
+            rtx0     = 1468840;
             rtx0_inv = 6971;
             break;
-        case 708:
-            rtx0     = 1475812;
-            rtx0_inv = 6966;
-            break;
-        case 709:
-            rtx0     = 1482776;
+        case 354:
+            rtx0     = 1482773;
             rtx0_inv = 6961;
             break;
-        case 710:
-            rtx0     = 1489735;
-            rtx0_inv = 6957;
-            break;
-        case 711:
-            rtx0     = 1496689;
+        case 355:
+            rtx0     = 1496686;
             rtx0_inv = 6952;
             break;
-        case 712:
-            rtx0     = 1503638;
-            rtx0_inv = 6947;
-            break;
-        case 713:
-            rtx0     = 1510583;
+        case 356:
+            rtx0     = 1510580;
             rtx0_inv = 6942;
             break;
-        case 714:
-            rtx0     = 1517522;
-            rtx0_inv = 6937;
-            break;
-        case 715:
-            rtx0     = 1524457;
+        case 357:
+            rtx0     = 1524454;
             rtx0_inv = 6932;
             break;
-        case 716:
-            rtx0     = 1531386;
-            rtx0_inv = 6927;
-            break;
-        case 717:
-            rtx0     = 1538311;
+        case 358:
+            rtx0     = 1538308;
             rtx0_inv = 6923;
             break;
-        case 718:
-            rtx0     = 1545232;
-            rtx0_inv = 6918;
-            break;
-        case 719:
-            rtx0     = 1552147;
+        case 359:
+            rtx0     = 1552144;
             rtx0_inv = 6913;
             break;
-        case 720:
-            rtx0     = 1559057;
-            rtx0_inv = 6908;
-            break;
-        case 721:
-            rtx0     = 1565963;
+        case 360:
+            rtx0     = 1565960;
             rtx0_inv = 6903;
             break;
-        case 722:
-            rtx0     = 1572864;
-            rtx0_inv = 6899;
-            break;
-        case 723:
-            rtx0     = 1579760;
+        case 361:
+            rtx0     = 1579757;
             rtx0_inv = 6894;
             break;
-        case 724:
-            rtx0     = 1586652;
-            rtx0_inv = 6889;
-            break;
-        case 725:
-            rtx0     = 1593538;
+        case 362:
+            rtx0     = 1593535;
             rtx0_inv = 6884;
             break;
-        case 726:
-            rtx0     = 1600420;
-            rtx0_inv = 6879;
-            break;
-        case 727:
-            rtx0     = 1607297;
+        case 363:
+            rtx0     = 1607294;
             rtx0_inv = 6875;
             break;
-        case 728:
-            rtx0     = 1614170;
-            rtx0_inv = 6870;
-            break;
-        case 729:
-            rtx0     = 1621037;
+        case 364:
+            rtx0     = 1621034;
             rtx0_inv = 6865;
             break;
-        case 730:
-            rtx0     = 1627900;
-            rtx0_inv = 6861;
-            break;
-        case 731:
-            rtx0     = 1634758;
+        case 365:
+            rtx0     = 1634755;
             rtx0_inv = 6856;
             break;
-        case 732:
-            rtx0     = 1641612;
-            rtx0_inv = 6851;
-            break;
-        case 733:
-            rtx0     = 1648461;
+        case 366:
+            rtx0     = 1648458;
             rtx0_inv = 6847;
             break;
-        case 734:
-            rtx0     = 1655305;
-            rtx0_inv = 6842;
-            break;
-        case 735:
-            rtx0     = 1662145;
+        case 367:
+            rtx0     = 1662142;
             rtx0_inv = 6837;
             break;
-        case 736:
-            rtx0     = 1668980;
-            rtx0_inv = 6833;
-            break;
-        case 737:
-            rtx0     = 1675810;
+        case 368:
+            rtx0     = 1675807;
             rtx0_inv = 6828;
             break;
-        case 738:
-            rtx0     = 1682636;
-            rtx0_inv = 6823;
-            break;
-        case 739:
-            rtx0     = 1689457;
+        case 369:
+            rtx0     = 1689454;
             rtx0_inv = 6819;
             break;
-        case 740:
-            rtx0     = 1696273;
-            rtx0_inv = 6814;
-            break;
-        case 741:
-            rtx0     = 1703085;
+        case 370:
+            rtx0     = 1703082;
             rtx0_inv = 6810;
             break;
-        case 742:
-            rtx0     = 1709892;
-            rtx0_inv = 6805;
-            break;
-        case 743:
-            rtx0     = 1716695;
+        case 371:
+            rtx0     = 1716692;
             rtx0_inv = 6800;
             break;
-        case 744:
-            rtx0     = 1723493;
-            rtx0_inv = 6796;
-            break;
-        case 745:
-            rtx0     = 1730286;
+        case 372:
+            rtx0     = 1730283;
             rtx0_inv = 6791;
             break;
-        case 746:
-            rtx0     = 1737075;
-            rtx0_inv = 6787;
-            break;
-        case 747:
-            rtx0     = 1743860;
+        case 373:
+            rtx0     = 1743857;
             rtx0_inv = 6782;
             break;
-        case 748:
-            rtx0     = 1750639;
-            rtx0_inv = 6778;
-            break;
-        case 749:
-            rtx0     = 1757415;
+        case 374:
+            rtx0     = 1757412;
             rtx0_inv = 6773;
             break;
-        case 750:
-            rtx0     = 1764185;
-            rtx0_inv = 6769;
-            break;
-        case 751:
-            rtx0     = 1770952;
+        case 375:
+            rtx0     = 1770949;
             rtx0_inv = 6764;
             break;
-        case 752:
-            rtx0     = 1777714;
-            rtx0_inv = 6760;
-            break;
-        case 753:
-            rtx0     = 1784471;
+        case 376:
+            rtx0     = 1784468;
             rtx0_inv = 6755;
             break;
-        case 754:
-            rtx0     = 1791224;
-            rtx0_inv = 6751;
-            break;
-        case 755:
-            rtx0     = 1797972;
+        case 377:
+            rtx0     = 1797969;
             rtx0_inv = 6746;
             break;
-        case 756:
-            rtx0     = 1804716;
-            rtx0_inv = 6742;
-            break;
-        case 757:
-            rtx0     = 1811455;
+        case 378:
+            rtx0     = 1811452;
             rtx0_inv = 6737;
             break;
-        case 758:
-            rtx0     = 1818190;
-            rtx0_inv = 6733;
-            break;
-        case 759:
-            rtx0     = 1824921;
+        case 379:
+            rtx0     = 1824918;
             rtx0_inv = 6728;
             break;
-        case 760:
-            rtx0     = 1831647;
-            rtx0_inv = 6724;
-            break;
-        case 761:
-            rtx0     = 1838368;
+        case 380:
+            rtx0     = 1838365;
             rtx0_inv = 6719;
             break;
-        case 762:
-            rtx0     = 1845085;
-            rtx0_inv = 6715;
-            break;
-        case 763:
-            rtx0     = 1851798;
+        case 381:
+            rtx0     = 1851795;
             rtx0_inv = 6711;
             break;
-        case 764:
-            rtx0     = 1858507;
-            rtx0_inv = 6706;
-            break;
-        case 765:
-            rtx0     = 1865211;
+        case 382:
+            rtx0     = 1865208;
             rtx0_inv = 6702;
             break;
-        case 766:
-            rtx0     = 1871910;
-            rtx0_inv = 6697;
-            break;
-        case 767:
-            rtx0     = 1878606;
+        case 383:
+            rtx0     = 1878603;
             rtx0_inv = 6693;
             break;
-        case 768:
-            rtx0     = 1885297;
-            rtx0_inv = 6689;
-            break;
-        case 769:
-            rtx0     = 1891983;
+        case 384:
+            rtx0     = 1891980;
             rtx0_inv = 6684;
             break;
-        case 770:
-            rtx0     = 1898665;
-            rtx0_inv = 6680;
-            break;
-        case 771:
-            rtx0     = 1905343;
+        case 385:
+            rtx0     = 1905340;
             rtx0_inv = 6676;
             break;
-        case 772:
-            rtx0     = 1912017;
-            rtx0_inv = 6671;
-            break;
-        case 773:
-            rtx0     = 1918686;
+        case 386:
+            rtx0     = 1918683;
             rtx0_inv = 6667;
             break;
-        case 774:
-            rtx0     = 1925351;
-            rtx0_inv = 6663;
-            break;
-        case 775:
-            rtx0     = 1932012;
+        case 387:
+            rtx0     = 1932009;
             rtx0_inv = 6658;
             break;
-        case 776:
-            rtx0     = 1938668;
-            rtx0_inv = 6654;
-            break;
-        case 777:
-            rtx0     = 1945320;
+        case 388:
+            rtx0     = 1945317;
             rtx0_inv = 6650;
             break;
-        case 778:
-            rtx0     = 1951968;
-            rtx0_inv = 6646;
-            break;
-        case 779:
-            rtx0     = 1958611;
+        case 389:
+            rtx0     = 1958608;
             rtx0_inv = 6641;
             break;
-        case 780:
-            rtx0     = 1965250;
-            rtx0_inv = 6637;
-            break;
-        case 781:
-            rtx0     = 1971885;
+        case 390:
+            rtx0     = 1971882;
             rtx0_inv = 6633;
             break;
-        case 782:
-            rtx0     = 1978516;
-            rtx0_inv = 6629;
-            break;
-        case 783:
-            rtx0     = 1985143;
+        case 391:
+            rtx0     = 1985140;
             rtx0_inv = 6624;
             break;
-        case 784:
-            rtx0     = 1991765;
-            rtx0_inv = 6620;
-            break;
-        case 785:
-            rtx0     = 1998383;
+        case 392:
+            rtx0     = 1998380;
             rtx0_inv = 6616;
             break;
-        case 786:
-            rtx0     = 2004997;
-            rtx0_inv = 6612;
-            break;
-        case 787:
-            rtx0     = 2011606;
+        case 393:
+            rtx0     = 2011603;
             rtx0_inv = 6608;
             break;
-        case 788:
-            rtx0     = 2018212;
-            rtx0_inv = 6603;
-            break;
-        case 789:
-            rtx0     = 2024813;
+        case 394:
+            rtx0     = 2024810;
             rtx0_inv = 6599;
             break;
-        case 790:
-            rtx0     = 2031410;
-            rtx0_inv = 6595;
-            break;
-        case 791:
-            rtx0     = 2038003;
+        case 395:
+            rtx0     = 2038000;
             rtx0_inv = 6591;
             break;
-        case 792:
-            rtx0     = 2044591;
-            rtx0_inv = 6587;
-            break;
-        case 793:
-            rtx0     = 2051176;
+        case 396:
+            rtx0     = 2051173;
             rtx0_inv = 6582;
             break;
-        case 794:
-            rtx0     = 2057756;
-            rtx0_inv = 6578;
-            break;
-        case 795:
-            rtx0     = 2064333;
+        case 397:
+            rtx0     = 2064330;
             rtx0_inv = 6574;
             break;
-        case 796:
-            rtx0     = 2070905;
-            rtx0_inv = 6570;
-            break;
-        case 797:
-            rtx0     = 2077473;
+        case 398:
+            rtx0     = 2077470;
             rtx0_inv = 6566;
             break;
-        case 798:
-            rtx0     = 2084037;
-            rtx0_inv = 6562;
-            break;
-        case 799:
-            rtx0     = 2090596;
+        case 399:
+            rtx0     = 2090593;
             rtx0_inv = 6558;
             break;
-        case 800:
-            rtx0     = 2097152;
-            rtx0_inv = 6554;
-            break;
-        case 801:
-            rtx0     = 2103704;
+        case 400:
+            rtx0     = 2103701;
             rtx0_inv = 6550;
             break;
-        case 802:
-            rtx0     = 2110251;
-            rtx0_inv = 6545;
-            break;
-        case 803:
-            rtx0     = 2116794;
+        case 401:
+            rtx0     = 2116791;
             rtx0_inv = 6541;
             break;
-        case 804:
-            rtx0     = 2123334;
-            rtx0_inv = 6537;
-            break;
-        case 805:
-            rtx0     = 2129869;
+        case 402:
+            rtx0     = 2129866;
             rtx0_inv = 6533;
             break;
-        case 806:
-            rtx0     = 2136400;
-            rtx0_inv = 6529;
-            break;
-        case 807:
-            rtx0     = 2142927;
+        case 403:
+            rtx0     = 2142924;
             rtx0_inv = 6525;
             break;
-        case 808:
-            rtx0     = 2149450;
-            rtx0_inv = 6521;
-            break;
-        case 809:
-            rtx0     = 2155969;
+        case 404:
+            rtx0     = 2155966;
             rtx0_inv = 6517;
             break;
-        case 810:
-            rtx0     = 2162484;
-            rtx0_inv = 6513;
-            break;
-        case 811:
-            rtx0     = 2168995;
+        case 405:
+            rtx0     = 2168992;
             rtx0_inv = 6509;
             break;
-        case 812:
-            rtx0     = 2175502;
-            rtx0_inv = 6505;
-            break;
-        case 813:
-            rtx0     = 2182005;
+        case 406:
+            rtx0     = 2182002;
             rtx0_inv = 6501;
             break;
-        case 814:
-            rtx0     = 2188504;
-            rtx0_inv = 6497;
-            break;
-        case 815:
-            rtx0     = 2194999;
+        case 407:
+            rtx0     = 2194996;
             rtx0_inv = 6493;
             break;
-        case 816:
-            rtx0     = 2201490;
-            rtx0_inv = 6489;
-            break;
-        case 817:
-            rtx0     = 2207978;
+        case 408:
+            rtx0     = 2207975;
             rtx0_inv = 6485;
             break;
-        case 818:
-            rtx0     = 2214461;
-            rtx0_inv = 6481;
-            break;
-        case 819:
-            rtx0     = 2220940;
+        case 409:
+            rtx0     = 2220937;
             rtx0_inv = 6477;
             break;
-        case 820:
-            rtx0     = 2227415;
-            rtx0_inv = 6473;
-            break;
-        case 821:
-            rtx0     = 2233886;
+        case 410:
+            rtx0     = 2233883;
             rtx0_inv = 6469;
             break;
-        case 822:
-            rtx0     = 2240353;
-            rtx0_inv = 6465;
-            break;
-        case 823:
-            rtx0     = 2246817;
+        case 411:
+            rtx0     = 2246814;
             rtx0_inv = 6461;
             break;
-        case 824:
-            rtx0     = 2253276;
-            rtx0_inv = 6457;
-            break;
-        case 825:
-            rtx0     = 2259732;
+        case 412:
+            rtx0     = 2259729;
             rtx0_inv = 6454;
             break;
-        case 826:
-            rtx0     = 2266183;
-            rtx0_inv = 6450;
-            break;
-        case 827:
-            rtx0     = 2272631;
+        case 413:
+            rtx0     = 2272628;
             rtx0_inv = 6446;
             break;
-        case 828:
-            rtx0     = 2279075;
-            rtx0_inv = 6442;
-            break;
-        case 829:
-            rtx0     = 2285515;
+        case 414:
+            rtx0     = 2285512;
             rtx0_inv = 6438;
             break;
-        case 830:
-            rtx0     = 2291951;
-            rtx0_inv = 6434;
-            break;
-        case 831:
-            rtx0     = 2298383;
+        case 415:
+            rtx0     = 2298380;
             rtx0_inv = 6430;
             break;
-        case 832:
-            rtx0     = 2304811;
-            rtx0_inv = 6426;
-            break;
-        case 833:
-            rtx0     = 2311235;
+        case 416:
+            rtx0     = 2311232;
             rtx0_inv = 6422;
             break;
-        case 834:
-            rtx0     = 2317656;
-            rtx0_inv = 6419;
-            break;
-        case 835:
-            rtx0     = 2324073;
+        case 417:
+            rtx0     = 2324070;
             rtx0_inv = 6415;
             break;
-        case 836:
-            rtx0     = 2330485;
-            rtx0_inv = 6411;
-            break;
-        case 837:
-            rtx0     = 2336895;
+        case 418:
+            rtx0     = 2336892;
             rtx0_inv = 6407;
             break;
-        case 838:
-            rtx0     = 2343300;
-            rtx0_inv = 6403;
-            break;
-        case 839:
-            rtx0     = 2349701;
+        case 419:
+            rtx0     = 2349698;
             rtx0_inv = 6399;
             break;
-        case 840:
-            rtx0     = 2356099;
-            rtx0_inv = 6396;
-            break;
-        case 841:
-            rtx0     = 2362492;
+        case 420:
+            rtx0     = 2362489;
             rtx0_inv = 6392;
             break;
-        case 842:
-            rtx0     = 2368882;
-            rtx0_inv = 6388;
-            break;
-        case 843:
-            rtx0     = 2375269;
+        case 421:
+            rtx0     = 2375266;
             rtx0_inv = 6384;
             break;
-        case 844:
-            rtx0     = 2381651;
-            rtx0_inv = 6380;
-            break;
-        case 845:
-            rtx0     = 2388029;
+        case 422:
+            rtx0     = 2388026;
             rtx0_inv = 6377;
             break;
-        case 846:
-            rtx0     = 2394404;
-            rtx0_inv = 6373;
-            break;
-        case 847:
-            rtx0     = 2400775;
+        case 423:
+            rtx0     = 2400772;
             rtx0_inv = 6369;
             break;
-        case 848:
-            rtx0     = 2407143;
-            rtx0_inv = 6365;
-            break;
-        case 849:
-            rtx0     = 2413506;
+        case 424:
+            rtx0     = 2413503;
             rtx0_inv = 6362;
             break;
-        case 850:
-            rtx0     = 2419866;
-            rtx0_inv = 6358;
-            break;
-        case 851:
-            rtx0     = 2426222;
+        case 425:
+            rtx0     = 2426219;
             rtx0_inv = 6354;
             break;
-        case 852:
-            rtx0     = 2432574;
-            rtx0_inv = 6350;
-            break;
-        case 853:
-            rtx0     = 2438923;
+        case 426:
+            rtx0     = 2438920;
             rtx0_inv = 6347;
             break;
-        case 854:
-            rtx0     = 2445268;
-            rtx0_inv = 6343;
-            break;
-        case 855:
-            rtx0     = 2451609;
+        case 427:
+            rtx0     = 2451606;
             rtx0_inv = 6339;
             break;
-        case 856:
-            rtx0     = 2457946;
-            rtx0_inv = 6336;
-            break;
-        case 857:
-            rtx0     = 2464280;
+        case 428:
+            rtx0     = 2464277;
             rtx0_inv = 6332;
             break;
-        case 858:
-            rtx0     = 2470610;
-            rtx0_inv = 6328;
-            break;
-        case 859:
-            rtx0     = 2476937;
+        case 429:
+            rtx0     = 2476934;
             rtx0_inv = 6325;
             break;
-        case 860:
-            rtx0     = 2483259;
-            rtx0_inv = 6321;
-            break;
-        case 861:
-            rtx0     = 2489578;
+        case 430:
+            rtx0     = 2489575;
             rtx0_inv = 6317;
             break;
-        case 862:
-            rtx0     = 2495894;
-            rtx0_inv = 6314;
-            break;
-        case 863:
-            rtx0     = 2502205;
+        case 431:
+            rtx0     = 2502202;
             rtx0_inv = 6310;
             break;
-        case 864:
-            rtx0     = 2508513;
-            rtx0_inv = 6306;
-            break;
-        case 865:
-            rtx0     = 2514818;
+        case 432:
+            rtx0     = 2514815;
             rtx0_inv = 6303;
             break;
-        case 866:
-            rtx0     = 2521119;
-            rtx0_inv = 6299;
-            break;
-        case 867:
-            rtx0     = 2527416;
+        case 433:
+            rtx0     = 2527413;
             rtx0_inv = 6295;
             break;
-        case 868:
-            rtx0     = 2533709;
-            rtx0_inv = 6292;
-            break;
-        case 869:
-            rtx0     = 2539999;
+        case 434:
+            rtx0     = 2539996;
             rtx0_inv = 6288;
             break;
-        case 870:
-            rtx0     = 2546285;
-            rtx0_inv = 6284;
-            break;
-        case 871:
-            rtx0     = 2552568;
+        case 435:
+            rtx0     = 2552565;
             rtx0_inv = 6281;
             break;
-        case 872:
-            rtx0     = 2558847;
-            rtx0_inv = 6277;
-            break;
-        case 873:
-            rtx0     = 2565122;
+        case 436:
+            rtx0     = 2565119;
             rtx0_inv = 6274;
             break;
-        case 874:
-            rtx0     = 2571394;
-            rtx0_inv = 6270;
-            break;
-        case 875:
-            rtx0     = 2577662;
+        case 437:
+            rtx0     = 2577659;
             rtx0_inv = 6266;
             break;
-        case 876:
-            rtx0     = 2583927;
-            rtx0_inv = 6263;
-            break;
-        case 877:
-            rtx0     = 2590188;
+        case 438:
+            rtx0     = 2590185;
             rtx0_inv = 6259;
             break;
-        case 878:
-            rtx0     = 2596446;
-            rtx0_inv = 6256;
-            break;
-        case 879:
-            rtx0     = 2602699;
+        case 439:
+            rtx0     = 2602696;
             rtx0_inv = 6252;
             break;
-        case 880:
-            rtx0     = 2608950;
-            rtx0_inv = 6249;
-            break;
-        case 881:
-            rtx0     = 2615197;
+        case 440:
+            rtx0     = 2615194;
             rtx0_inv = 6245;
             break;
-        case 882:
-            rtx0     = 2621440;
-            rtx0_inv = 6242;
-            break;
-        case 883:
-            rtx0     = 2627680;
+        case 441:
+            rtx0     = 2627677;
             rtx0_inv = 6238;
             break;
-        case 884:
-            rtx0     = 2633916;
-            rtx0_inv = 6234;
-            break;
-        case 885:
-            rtx0     = 2640149;
+        case 442:
+            rtx0     = 2640146;
             rtx0_inv = 6231;
             break;
-        case 886:
-            rtx0     = 2646378;
-            rtx0_inv = 6227;
-            break;
-        case 887:
-            rtx0     = 2652604;
+        case 443:
+            rtx0     = 2652601;
             rtx0_inv = 6224;
             break;
-        case 888:
-            rtx0     = 2658826;
-            rtx0_inv = 6220;
-            break;
-        case 889:
-            rtx0     = 2665044;
+        case 444:
+            rtx0     = 2665041;
             rtx0_inv = 6217;
             break;
-        case 890:
-            rtx0     = 2671259;
-            rtx0_inv = 6213;
-            break;
-        case 891:
-            rtx0     = 2677471;
+        case 445:
+            rtx0     = 2677468;
             rtx0_inv = 6210;
             break;
-        case 892:
-            rtx0     = 2683679;
-            rtx0_inv = 6206;
-            break;
-        case 893:
-            rtx0     = 2689884;
+        case 446:
+            rtx0     = 2689881;
             rtx0_inv = 6203;
             break;
-        case 894:
-            rtx0     = 2696085;
-            rtx0_inv = 6199;
-            break;
-        case 895:
-            rtx0     = 2702283;
+        case 447:
+            rtx0     = 2702280;
             rtx0_inv = 6196;
             break;
-        case 896:
-            rtx0     = 2708477;
-            rtx0_inv = 6193;
-            break;
-        case 897:
-            rtx0     = 2714668;
+        case 448:
+            rtx0     = 2714665;
             rtx0_inv = 6189;
             break;
-        case 898:
-            rtx0     = 2720856;
-            rtx0_inv = 6186;
-            break;
-        case 899:
-            rtx0     = 2727039;
+        case 449:
+            rtx0     = 2727036;
             rtx0_inv = 6182;
             break;
-        case 900:
-            rtx0     = 2733220;
-            rtx0_inv = 6179;
-            break;
-        case 901:
-            rtx0     = 2739397;
+        case 450:
+            rtx0     = 2739394;
             rtx0_inv = 6175;
             break;
-        case 902:
-            rtx0     = 2745571;
-            rtx0_inv = 6172;
-            break;
-        case 903:
-            rtx0     = 2751741;
+        case 451:
+            rtx0     = 2751738;
             rtx0_inv = 6169;
             break;
-        case 904:
-            rtx0     = 2757908;
-            rtx0_inv = 6165;
-            break;
-        case 905:
-            rtx0     = 2764071;
+        case 452:
+            rtx0     = 2764068;
             rtx0_inv = 6162;
             break;
-        case 906:
-            rtx0     = 2770231;
-            rtx0_inv = 6158;
-            break;
-        case 907:
-            rtx0     = 2776388;
+        case 453:
+            rtx0     = 2776385;
             rtx0_inv = 6155;
             break;
-        case 908:
-            rtx0     = 2782541;
-            rtx0_inv = 6152;
-            break;
-        case 909:
-            rtx0     = 2788691;
+        case 454:
+            rtx0     = 2788688;
             rtx0_inv = 6148;
             break;
-        case 910:
-            rtx0     = 2794837;
-            rtx0_inv = 6145;
-            break;
-        case 911:
-            rtx0     = 2800980;
+        case 455:
+            rtx0     = 2800977;
             rtx0_inv = 6141;
             break;
-        case 912:
-            rtx0     = 2807120;
-            rtx0_inv = 6138;
-            break;
-        case 913:
-            rtx0     = 2813256;
+        case 456:
+            rtx0     = 2813253;
             rtx0_inv = 6135;
             break;
-        case 914:
-            rtx0     = 2819389;
-            rtx0_inv = 6131;
-            break;
-        case 915:
-            rtx0     = 2825519;
+        case 457:
+            rtx0     = 2825516;
             rtx0_inv = 6128;
             break;
-        case 916:
-            rtx0     = 2831645;
-            rtx0_inv = 6125;
-            break;
-        case 917:
-            rtx0     = 2837768;
+        case 458:
+            rtx0     = 2837765;
             rtx0_inv = 6121;
             break;
-        case 918:
-            rtx0     = 2843888;
-            rtx0_inv = 6118;
-            break;
-        case 919:
-            rtx0     = 2850004;
+        case 459:
+            rtx0     = 2850001;
             rtx0_inv = 6115;
             break;
-        case 920:
-            rtx0     = 2856117;
-            rtx0_inv = 6111;
-            break;
-        case 921:
-            rtx0     = 2862226;
+        case 460:
+            rtx0     = 2862223;
             rtx0_inv = 6108;
             break;
-        case 922:
-            rtx0     = 2868333;
-            rtx0_inv = 6105;
-            break;
-        case 923:
-            rtx0     = 2874436;
+        case 461:
+            rtx0     = 2874433;
             rtx0_inv = 6101;
             break;
-        case 924:
-            rtx0     = 2880535;
-            rtx0_inv = 6098;
-            break;
-        case 925:
-            rtx0     = 2886632;
+        case 462:
+            rtx0     = 2886629;
             rtx0_inv = 6095;
             break;
-        case 926:
-            rtx0     = 2892725;
-            rtx0_inv = 6091;
-            break;
-        case 927:
-            rtx0     = 2898815;
+        case 463:
+            rtx0     = 2898812;
             rtx0_inv = 6088;
             break;
-        case 928:
-            rtx0     = 2904901;
-            rtx0_inv = 6085;
-            break;
-        case 929:
-            rtx0     = 2910984;
+        case 464:
+            rtx0     = 2910981;
             rtx0_inv = 6082;
             break;
-        case 930:
-            rtx0     = 2917064;
-            rtx0_inv = 6078;
-            break;
-        case 931:
-            rtx0     = 2923141;
+        case 465:
+            rtx0     = 2923138;
             rtx0_inv = 6075;
             break;
-        case 932:
-            rtx0     = 2929214;
-            rtx0_inv = 6072;
-            break;
-        case 933:
-            rtx0     = 2935285;
+        case 466:
+            rtx0     = 2935282;
             rtx0_inv = 6069;
             break;
-        case 934:
-            rtx0     = 2941352;
-            rtx0_inv = 6065;
-            break;
-        case 935:
-            rtx0     = 2947415;
+        case 467:
+            rtx0     = 2947412;
             rtx0_inv = 6062;
             break;
-        case 936:
-            rtx0     = 2953476;
-            rtx0_inv = 6059;
-            break;
-        case 937:
-            rtx0     = 2959533;
+        case 468:
+            rtx0     = 2959530;
             rtx0_inv = 6056;
             break;
-        case 938:
-            rtx0     = 2965587;
-            rtx0_inv = 6052;
-            break;
-        case 939:
-            rtx0     = 2971637;
+        case 469:
+            rtx0     = 2971634;
             rtx0_inv = 6049;
             break;
-        case 940:
-            rtx0     = 2977685;
-            rtx0_inv = 6046;
-            break;
-        case 941:
-            rtx0     = 2983729;
+        case 470:
+            rtx0     = 2983726;
             rtx0_inv = 6043;
             break;
-        case 942:
-            rtx0     = 2989770;
-            rtx0_inv = 6039;
-            break;
-        case 943:
-            rtx0     = 2995808;
+        case 471:
+            rtx0     = 2995805;
             rtx0_inv = 6036;
             break;
-        case 944:
-            rtx0     = 3001843;
-            rtx0_inv = 6033;
-            break;
-        case 945:
-            rtx0     = 3007874;
+        case 472:
+            rtx0     = 3007871;
             rtx0_inv = 6030;
             break;
-        case 946:
-            rtx0     = 3013903;
-            rtx0_inv = 6027;
-            break;
-        case 947:
-            rtx0     = 3019928;
+        case 473:
+            rtx0     = 3019925;
             rtx0_inv = 6024;
             break;
-        case 948:
-            rtx0     = 3025950;
-            rtx0_inv = 6020;
-            break;
-        case 949:
-            rtx0     = 3031968;
+        case 474:
+            rtx0     = 3031965;
             rtx0_inv = 6017;
             break;
-        case 950:
-            rtx0     = 3037984;
-            rtx0_inv = 6014;
-            break;
-        case 951:
-            rtx0     = 3043996;
+        case 475:
+            rtx0     = 3043993;
             rtx0_inv = 6011;
             break;
-        case 952:
-            rtx0     = 3050006;
-            rtx0_inv = 6008;
-            break;
-        case 953:
-            rtx0     = 3056012;
+        case 476:
+            rtx0     = 3056009;
             rtx0_inv = 6005;
             break;
-        case 954:
-            rtx0     = 3062015;
-            rtx0_inv = 6001;
-            break;
-        case 955:
-            rtx0     = 3068015;
+        case 477:
+            rtx0     = 3068012;
             rtx0_inv = 5998;
             break;
-        case 956:
-            rtx0     = 3074011;
-            rtx0_inv = 5995;
-            break;
-        case 957:
-            rtx0     = 3080005;
+        case 478:
+            rtx0     = 3080002;
             rtx0_inv = 5992;
             break;
-        case 958:
-            rtx0     = 3085995;
-            rtx0_inv = 5989;
-            break;
-        case 959:
-            rtx0     = 3091982;
+        case 479:
+            rtx0     = 3091979;
             rtx0_inv = 5986;
             break;
-        case 960:
-            rtx0     = 3097967;
-            rtx0_inv = 5983;
-            break;
-        case 961:
-            rtx0     = 3103948;
+        case 480:
+            rtx0     = 3103945;
             rtx0_inv = 5979;
             break;
-        case 962:
-            rtx0     = 3109926;
-            rtx0_inv = 5976;
-            break;
-        case 963:
-            rtx0     = 3115900;
+        case 481:
+            rtx0     = 3115897;
             rtx0_inv = 5973;
             break;
-        case 964:
-            rtx0     = 3121872;
-            rtx0_inv = 5970;
-            break;
-        case 965:
-            rtx0     = 3127841;
+        case 482:
+            rtx0     = 3127838;
             rtx0_inv = 5967;
             break;
-        case 966:
-            rtx0     = 3133806;
-            rtx0_inv = 5964;
-            break;
-        case 967:
-            rtx0     = 3139769;
+        case 483:
+            rtx0     = 3139766;
             rtx0_inv = 5961;
             break;
-        case 968:
-            rtx0     = 3145728;
-            rtx0_inv = 5958;
-            break;
-        case 969:
-            rtx0     = 3151684;
+        case 484:
+            rtx0     = 3151681;
             rtx0_inv = 5955;
             break;
-        case 970:
-            rtx0     = 3157637;
-            rtx0_inv = 5952;
-            break;
-        case 971:
-            rtx0     = 3163588;
+        case 485:
+            rtx0     = 3163585;
             rtx0_inv = 5949;
             break;
-        case 972:
-            rtx0     = 3169535;
-            rtx0_inv = 5946;
-            break;
-        case 973:
-            rtx0     = 3175479;
+        case 486:
+            rtx0     = 3175476;
             rtx0_inv = 5942;
             break;
-        case 974:
-            rtx0     = 3181420;
-            rtx0_inv = 5939;
-            break;
-        case 975:
-            rtx0     = 3187358;
+        case 487:
+            rtx0     = 3187355;
             rtx0_inv = 5936;
             break;
-        case 976:
-            rtx0     = 3193292;
-            rtx0_inv = 5933;
-            break;
-        case 977:
-            rtx0     = 3199224;
+        case 488:
+            rtx0     = 3199221;
             rtx0_inv = 5930;
             break;
-        case 978:
-            rtx0     = 3205153;
-            rtx0_inv = 5927;
-            break;
-        case 979:
-            rtx0     = 3211079;
+        case 489:
+            rtx0     = 3211076;
             rtx0_inv = 5924;
             break;
-        case 980:
-            rtx0     = 3217002;
-            rtx0_inv = 5921;
-            break;
-        case 981:
-            rtx0     = 3222921;
+        case 490:
+            rtx0     = 3222918;
             rtx0_inv = 5918;
             break;
-        case 982:
-            rtx0     = 3228838;
-            rtx0_inv = 5915;
-            break;
-        case 983:
-            rtx0     = 3234752;
+        case 491:
+            rtx0     = 3234749;
             rtx0_inv = 5912;
             break;
-        case 984:
-            rtx0     = 3240662;
-            rtx0_inv = 5909;
-            break;
-        case 985:
-            rtx0     = 3246570;
+        case 492:
+            rtx0     = 3246567;
             rtx0_inv = 5906;
             break;
-        case 986:
-            rtx0     = 3252475;
-            rtx0_inv = 5903;
-            break;
-        case 987:
-            rtx0     = 3258376;
+        case 493:
+            rtx0     = 3258373;
             rtx0_inv = 5900;
             break;
-        case 988:
-            rtx0     = 3264275;
-            rtx0_inv = 5897;
-            break;
-        case 989:
-            rtx0     = 3270171;
+        case 494:
+            rtx0     = 3270168;
             rtx0_inv = 5894;
             break;
-        case 990:
-            rtx0     = 3276064;
-            rtx0_inv = 5891;
-            break;
-        case 991:
-            rtx0     = 3281953;
+        case 495:
+            rtx0     = 3281950;
             rtx0_inv = 5888;
             break;
-        case 992:
-            rtx0     = 3287840;
-            rtx0_inv = 5885;
-            break;
-        case 993:
-            rtx0     = 3293724;
+        case 496:
+            rtx0     = 3293721;
             rtx0_inv = 5882;
             break;
-        case 994:
-            rtx0     = 3299605;
-            rtx0_inv = 5879;
-            break;
-        case 995:
-            rtx0     = 3305483;
+        case 497:
+            rtx0     = 3305480;
             rtx0_inv = 5876;
             break;
-        case 996:
-            rtx0     = 3311358;
-            rtx0_inv = 5873;
-            break;
-        case 997:
-            rtx0     = 3317230;
+        case 498:
+            rtx0     = 3317227;
             rtx0_inv = 5871;
             break;
-        case 998:
-            rtx0     = 3323099;
-            rtx0_inv = 5868;
-            break;
-        case 999:
-            rtx0     = 3328965;
+        case 499:
+            rtx0     = 3328962;
             rtx0_inv = 5865;
             break;
-        case 1000:
-            rtx0     = 3334828;
-            rtx0_inv = 5862;
-            break;
-        case 1001:
-            rtx0     = 3340688;
+        case 500:
+            rtx0     = 3340685;
             rtx0_inv = 5859;
             break;
-        case 1002:
-            rtx0     = 3346546;
-            rtx0_inv = 5856;
-            break;
-        case 1003:
-            rtx0     = 3352400;
+        case 501:
+            rtx0     = 3352397;
             rtx0_inv = 5853;
             break;
-        case 1004:
-            rtx0     = 3358252;
-            rtx0_inv = 5850;
-            break;
-        case 1005:
-            rtx0     = 3364100;
+        case 502:
+            rtx0     = 3364097;
             rtx0_inv = 5847;
             break;
-        case 1006:
-            rtx0     = 3369946;
-            rtx0_inv = 5844;
-            break;
-        case 1007:
-            rtx0     = 3375789;
+        case 503:
+            rtx0     = 3375786;
             rtx0_inv = 5841;
             break;
-        case 1008:
-            rtx0     = 3381628;
-            rtx0_inv = 5838;
-            break;
-        case 1009:
-            rtx0     = 3387465;
+        case 504:
+            rtx0     = 3387462;
             rtx0_inv = 5836;
             break;
-        case 1010:
-            rtx0     = 3393299;
-            rtx0_inv = 5833;
-            break;
-        case 1011:
-            rtx0     = 3399131;
+        case 505:
+            rtx0     = 3399128;
             rtx0_inv = 5830;
             break;
-        case 1012:
-            rtx0     = 3404959;
-            rtx0_inv = 5827;
-            break;
-        case 1013:
-            rtx0     = 3410784;
+        case 506:
+            rtx0     = 3410781;
             rtx0_inv = 5824;
             break;
-        case 1014:
-            rtx0     = 3416607;
-            rtx0_inv = 5821;
-            break;
-        case 1015:
-            rtx0     = 3422427;
+        case 507:
+            rtx0     = 3422424;
             rtx0_inv = 5818;
             break;
-        case 1016:
-            rtx0     = 3428243;
-            rtx0_inv = 5815;
-            break;
-        case 1017:
-            rtx0     = 3434057;
+        case 508:
+            rtx0     = 3434054;
             rtx0_inv = 5813;
             break;
-        case 1018:
-            rtx0     = 3439868;
-            rtx0_inv = 5810;
-            break;
-        case 1019:
-            rtx0     = 3445677;
+        case 509:
+            rtx0     = 3445674;
             rtx0_inv = 5807;
             break;
-        case 1020:
-            rtx0     = 3451482;
-            rtx0_inv = 5804;
-            break;
-        case 1021:
-            rtx0     = 3457285;
+        case 510:
+            rtx0     = 3457282;
             rtx0_inv = 5801;
             break;
-        case 1022:
-            rtx0     = 3463084;
-            rtx0_inv = 5798;
-            break;
-        case 1023:
-            rtx0     = 3468881;
+        case 511:
+            rtx0     = 3468878;
             rtx0_inv = 5795;
             break;
         case 0:
-            rtx0     = 3474675;
-            rtx0_inv = 11585;
-            break;
-        case 1:
-            rtx0     = 3486255;
+            rtx0     = 3486252;
             rtx0_inv = 11574;
             break;
-        case 2:
-            rtx0     = 3497823;
-            rtx0_inv = 11563;
-            break;
-        case 3:
-            rtx0     = 3509380;
+        case 1:
+            rtx0     = 3509377;
             rtx0_inv = 11551;
             break;
-        case 4:
-            rtx0     = 3520926;
-            rtx0_inv = 11540;
-            break;
-        case 5:
-            rtx0     = 3532461;
+        case 2:
+            rtx0     = 3532458;
             rtx0_inv = 11529;
             break;
-        case 6:
-            rtx0     = 3543984;
-            rtx0_inv = 11518;
-            break;
-        case 7:
-            rtx0     = 3555497;
+        case 3:
+            rtx0     = 3555494;
             rtx0_inv = 11507;
             break;
-        case 8:
-            rtx0     = 3566998;
-            rtx0_inv = 11496;
-            break;
-        case 9:
-            rtx0     = 3578488;
+        case 4:
+            rtx0     = 3578485;
             rtx0_inv = 11485;
             break;
-        case 10:
-            rtx0     = 3589967;
-            rtx0_inv = 11474;
-            break;
-        case 11:
-            rtx0     = 3601436;
+        case 5:
+            rtx0     = 3601433;
             rtx0_inv = 11463;
             break;
-        case 12:
-            rtx0     = 3612893;
-            rtx0_inv = 11452;
-            break;
-        case 13:
-            rtx0     = 3624339;
+        case 6:
+            rtx0     = 3624336;
             rtx0_inv = 11441;
             break;
-        case 14:
-            rtx0     = 3635775;
-            rtx0_inv = 11430;
-            break;
-        case 15:
-            rtx0     = 3647199;
+        case 7:
+            rtx0     = 3647196;
             rtx0_inv = 11419;
             break;
-        case 16:
-            rtx0     = 3658613;
-            rtx0_inv = 11408;
-            break;
-        case 17:
-            rtx0     = 3670016;
+        case 8:
+            rtx0     = 3670013;
             rtx0_inv = 11398;
             break;
-        case 18:
-            rtx0     = 3681408;
-            rtx0_inv = 11387;
-            break;
-        case 19:
-            rtx0     = 3692790;
+        case 9:
+            rtx0     = 3692787;
             rtx0_inv = 11376;
             break;
-        case 20:
-            rtx0     = 3704160;
-            rtx0_inv = 11365;
-            break;
-        case 21:
-            rtx0     = 3715520;
+        case 10:
+            rtx0     = 3715517;
             rtx0_inv = 11355;
             break;
-        case 22:
-            rtx0     = 3726870;
-            rtx0_inv = 11344;
-            break;
-        case 23:
-            rtx0     = 3738209;
+        case 11:
+            rtx0     = 3738206;
             rtx0_inv = 11333;
             break;
-        case 24:
-            rtx0     = 3749537;
-            rtx0_inv = 11323;
-            break;
-        case 25:
-            rtx0     = 3760854;
+        case 12:
+            rtx0     = 3760851;
             rtx0_inv = 11312;
             break;
-        case 26:
-            rtx0     = 3772161;
-            rtx0_inv = 11302;
-            break;
-        case 27:
-            rtx0     = 3783458;
+        case 13:
+            rtx0     = 3783455;
             rtx0_inv = 11291;
             break;
-        case 28:
-            rtx0     = 3794744;
-            rtx0_inv = 11281;
-            break;
-        case 29:
-            rtx0     = 3806020;
+        case 14:
+            rtx0     = 3806017;
             rtx0_inv = 11270;
             break;
-        case 30:
-            rtx0     = 3817285;
-            rtx0_inv = 11260;
-            break;
-        case 31:
-            rtx0     = 3828540;
+        case 15:
+            rtx0     = 3828537;
             rtx0_inv = 11250;
             break;
-        case 32:
-            rtx0     = 3839784;
-            rtx0_inv = 11239;
-            break;
-        case 33:
-            rtx0     = 3851019;
+        case 16:
+            rtx0     = 3851016;
             rtx0_inv = 11229;
             break;
-        case 34:
-            rtx0     = 3862242;
-            rtx0_inv = 11219;
-            break;
-        case 35:
-            rtx0     = 3873456;
+        case 17:
+            rtx0     = 3873453;
             rtx0_inv = 11208;
             break;
-        case 36:
-            rtx0     = 3884659;
-            rtx0_inv = 11198;
-            break;
-        case 37:
-            rtx0     = 3895853;
+        case 18:
+            rtx0     = 3895850;
             rtx0_inv = 11188;
             break;
-        case 38:
-            rtx0     = 3907035;
-            rtx0_inv = 11178;
-            break;
-        case 39:
-            rtx0     = 3918208;
+        case 19:
+            rtx0     = 3918205;
             rtx0_inv = 11168;
             break;
-        case 40:
-            rtx0     = 3929371;
-            rtx0_inv = 11158;
-            break;
-        case 41:
-            rtx0     = 3940523;
+        case 20:
+            rtx0     = 3940520;
             rtx0_inv = 11147;
             break;
-        case 42:
-            rtx0     = 3951666;
-            rtx0_inv = 11137;
-            break;
-        case 43:
-            rtx0     = 3962798;
+        case 21:
+            rtx0     = 3962795;
             rtx0_inv = 11127;
             break;
-        case 44:
-            rtx0     = 3973921;
-            rtx0_inv = 11117;
-            break;
-        case 45:
-            rtx0     = 3985033;
+        case 22:
+            rtx0     = 3985030;
             rtx0_inv = 11107;
             break;
-        case 46:
-            rtx0     = 3996136;
-            rtx0_inv = 11097;
-            break;
-        case 47:
-            rtx0     = 4007228;
+        case 23:
+            rtx0     = 4007225;
             rtx0_inv = 11088;
             break;
-        case 48:
-            rtx0     = 4018311;
-            rtx0_inv = 11078;
-            break;
-        case 49:
-            rtx0     = 4029383;
+        case 24:
+            rtx0     = 4029380;
             rtx0_inv = 11068;
             break;
-        case 50:
-            rtx0     = 4040446;
-            rtx0_inv = 11058;
-            break;
-        case 51:
-            rtx0     = 4051499;
+        case 25:
+            rtx0     = 4051496;
             rtx0_inv = 11048;
             break;
-        case 52:
-            rtx0     = 4062542;
-            rtx0_inv = 11038;
-            break;
-        case 53:
-            rtx0     = 4073575;
+        case 26:
+            rtx0     = 4073572;
             rtx0_inv = 11028;
             break;
-        case 54:
-            rtx0     = 4084599;
-            rtx0_inv = 11019;
-            break;
-        case 55:
-            rtx0     = 4095613;
+        case 27:
+            rtx0     = 4095610;
             rtx0_inv = 11009;
             break;
-        case 56:
-            rtx0     = 4106617;
-            rtx0_inv = 10999;
-            break;
-        case 57:
-            rtx0     = 4117612;
+        case 28:
+            rtx0     = 4117609;
             rtx0_inv = 10990;
             break;
-        case 58:
-            rtx0     = 4128596;
-            rtx0_inv = 10980;
-            break;
-        case 59:
-            rtx0     = 4139572;
+        case 29:
+            rtx0     = 4139569;
             rtx0_inv = 10970;
             break;
-        case 60:
-            rtx0     = 4150537;
-            rtx0_inv = 10961;
-            break;
-        case 61:
-            rtx0     = 4161493;
+        case 30:
+            rtx0     = 4161490;
             rtx0_inv = 10951;
             break;
-        case 62:
-            rtx0     = 4172440;
-            rtx0_inv = 10942;
-            break;
-        case 63:
-            rtx0     = 4183377;
+        case 31:
+            rtx0     = 4183374;
             rtx0_inv = 10932;
             break;
-        case 64:
-            rtx0     = 4194304;
-            rtx0_inv = 10923;
-            break;
-        case 65:
-            rtx0     = 4205222;
+        case 32:
+            rtx0     = 4205219;
             rtx0_inv = 10913;
             break;
-        case 66:
-            rtx0     = 4216130;
-            rtx0_inv = 10904;
-            break;
-        case 67:
-            rtx0     = 4227029;
+        case 33:
+            rtx0     = 4227026;
             rtx0_inv = 10894;
             break;
-        case 68:
-            rtx0     = 4237919;
-            rtx0_inv = 10885;
-            break;
-        case 69:
-            rtx0     = 4248799;
+        case 34:
+            rtx0     = 4248796;
             rtx0_inv = 10876;
             break;
-        case 70:
-            rtx0     = 4259670;
-            rtx0_inv = 10866;
-            break;
-        case 71:
-            rtx0     = 4270532;
+        case 35:
+            rtx0     = 4270529;
             rtx0_inv = 10857;
             break;
-        case 72:
-            rtx0     = 4281384;
-            rtx0_inv = 10848;
-            break;
-        case 73:
-            rtx0     = 4292227;
+        case 36:
+            rtx0     = 4292224;
             rtx0_inv = 10838;
             break;
-        case 74:
-            rtx0     = 4303061;
-            rtx0_inv = 10829;
-            break;
-        case 75:
-            rtx0     = 4313885;
+        case 37:
+            rtx0     = 4313882;
             rtx0_inv = 10820;
             break;
-        case 76:
-            rtx0     = 4324700;
-            rtx0_inv = 10811;
-            break;
-        case 77:
-            rtx0     = 4335506;
+        case 38:
+            rtx0     = 4335503;
             rtx0_inv = 10801;
             break;
-        case 78:
-            rtx0     = 4346303;
-            rtx0_inv = 10792;
-            break;
-        case 79:
-            rtx0     = 4357091;
+        case 39:
+            rtx0     = 4357088;
             rtx0_inv = 10783;
             break;
-        case 80:
-            rtx0     = 4367870;
-            rtx0_inv = 10774;
-            break;
-        case 81:
-            rtx0     = 4378639;
+        case 40:
+            rtx0     = 4378636;
             rtx0_inv = 10765;
             break;
-        case 82:
-            rtx0     = 4389400;
-            rtx0_inv = 10756;
-            break;
-        case 83:
-            rtx0     = 4400151;
+        case 41:
+            rtx0     = 4400148;
             rtx0_inv = 10747;
             break;
-        case 84:
-            rtx0     = 4410893;
-            rtx0_inv = 10738;
-            break;
-        case 85:
-            rtx0     = 4421627;
+        case 42:
+            rtx0     = 4421624;
             rtx0_inv = 10729;
             break;
-        case 86:
-            rtx0     = 4432351;
-            rtx0_inv = 10720;
-            break;
-        case 87:
-            rtx0     = 4443066;
+        case 43:
+            rtx0     = 4443063;
             rtx0_inv = 10711;
             break;
-        case 88:
-            rtx0     = 4453773;
-            rtx0_inv = 10702;
-            break;
-        case 89:
-            rtx0     = 4464470;
+        case 44:
+            rtx0     = 4464467;
             rtx0_inv = 10693;
             break;
-        case 90:
-            rtx0     = 4475159;
-            rtx0_inv = 10684;
-            break;
-        case 91:
-            rtx0     = 4485839;
+        case 45:
+            rtx0     = 4485836;
             rtx0_inv = 10675;
             break;
-        case 92:
-            rtx0     = 4496510;
-            rtx0_inv = 10666;
-            break;
-        case 93:
-            rtx0     = 4507172;
+        case 46:
+            rtx0     = 4507169;
             rtx0_inv = 10658;
             break;
-        case 94:
-            rtx0     = 4517825;
-            rtx0_inv = 10649;
-            break;
-        case 95:
-            rtx0     = 4528469;
+        case 47:
+            rtx0     = 4528466;
             rtx0_inv = 10640;
             break;
-        case 96:
-            rtx0     = 4539105;
-            rtx0_inv = 10631;
-            break;
-        case 97:
-            rtx0     = 4549732;
+        case 48:
+            rtx0     = 4549729;
             rtx0_inv = 10623;
             break;
-        case 98:
-            rtx0     = 4560350;
-            rtx0_inv = 10614;
-            break;
-        case 99:
-            rtx0     = 4570960;
+        case 49:
+            rtx0     = 4570957;
             rtx0_inv = 10605;
             break;
-        case 100:
-            rtx0     = 4581561;
-            rtx0_inv = 10597;
-            break;
-        case 101:
-            rtx0     = 4592153;
+        case 50:
+            rtx0     = 4592150;
             rtx0_inv = 10588;
             break;
-        case 102:
-            rtx0     = 4602737;
-            rtx0_inv = 10579;
-            break;
-        case 103:
-            rtx0     = 4613312;
+        case 51:
+            rtx0     = 4613309;
             rtx0_inv = 10571;
             break;
-        case 104:
-            rtx0     = 4623878;
-            rtx0_inv = 10562;
-            break;
-        case 105:
-            rtx0     = 4634436;
+        case 52:
+            rtx0     = 4634433;
             rtx0_inv = 10554;
             break;
-        case 106:
-            rtx0     = 4644985;
-            rtx0_inv = 10545;
-            break;
-        case 107:
-            rtx0     = 4655526;
+        case 53:
+            rtx0     = 4655523;
             rtx0_inv = 10536;
             break;
-        case 108:
-            rtx0     = 4666058;
-            rtx0_inv = 10528;
-            break;
-        case 109:
-            rtx0     = 4676582;
+        case 54:
+            rtx0     = 4676579;
             rtx0_inv = 10519;
             break;
-        case 110:
-            rtx0     = 4687097;
-            rtx0_inv = 10511;
-            break;
-        case 111:
-            rtx0     = 4697604;
+        case 55:
+            rtx0     = 4697601;
             rtx0_inv = 10503;
             break;
-        case 112:
-            rtx0     = 4708102;
-            rtx0_inv = 10494;
-            break;
-        case 113:
-            rtx0     = 4718592;
+        case 56:
+            rtx0     = 4718589;
             rtx0_inv = 10486;
             break;
-        case 114:
-            rtx0     = 4729074;
-            rtx0_inv = 10477;
-            break;
-        case 115:
-            rtx0     = 4739547;
+        case 57:
+            rtx0     = 4739544;
             rtx0_inv = 10469;
             break;
-        case 116:
-            rtx0     = 4750012;
-            rtx0_inv = 10461;
-            break;
-        case 117:
-            rtx0     = 4760468;
+        case 58:
+            rtx0     = 4760465;
             rtx0_inv = 10452;
             break;
-        case 118:
-            rtx0     = 4770916;
-            rtx0_inv = 10444;
-            break;
-        case 119:
-            rtx0     = 4781356;
+        case 59:
+            rtx0     = 4781353;
             rtx0_inv = 10436;
             break;
-        case 120:
-            rtx0     = 4791788;
-            rtx0_inv = 10428;
-            break;
-        case 121:
-            rtx0     = 4802211;
+        case 60:
+            rtx0     = 4802208;
             rtx0_inv = 10419;
             break;
-        case 122:
-            rtx0     = 4812627;
-            rtx0_inv = 10411;
-            break;
-        case 123:
-            rtx0     = 4823033;
+        case 61:
+            rtx0     = 4823030;
             rtx0_inv = 10403;
             break;
-        case 124:
-            rtx0     = 4833432;
-            rtx0_inv = 10395;
-            break;
-        case 125:
-            rtx0     = 4843823;
+        case 62:
+            rtx0     = 4843820;
             rtx0_inv = 10387;
             break;
-        case 126:
-            rtx0     = 4854205;
-            rtx0_inv = 10378;
-            break;
-        case 127:
-            rtx0     = 4864580;
+        case 63:
+            rtx0     = 4864577;
             rtx0_inv = 10370;
             break;
-        case 128:
-            rtx0     = 4874946;
-            rtx0_inv = 10362;
-            break;
-        case 129:
-            rtx0     = 4885304;
+        case 64:
+            rtx0     = 4885301;
             rtx0_inv = 10354;
             break;
-        case 130:
-            rtx0     = 4895654;
-            rtx0_inv = 10346;
-            break;
-        case 131:
-            rtx0     = 4905996;
+        case 65:
+            rtx0     = 4905993;
             rtx0_inv = 10338;
             break;
-        case 132:
-            rtx0     = 4916330;
-            rtx0_inv = 10330;
-            break;
-        case 133:
-            rtx0     = 4926656;
+        case 66:
+            rtx0     = 4926653;
             rtx0_inv = 10322;
             break;
-        case 134:
-            rtx0     = 4936974;
-            rtx0_inv = 10314;
-            break;
-        case 135:
-            rtx0     = 4947284;
+        case 67:
+            rtx0     = 4947281;
             rtx0_inv = 10306;
             break;
-        case 136:
-            rtx0     = 4957586;
-            rtx0_inv = 10298;
-            break;
-        case 137:
-            rtx0     = 4967880;
+        case 68:
+            rtx0     = 4967877;
             rtx0_inv = 10290;
             break;
-        case 138:
-            rtx0     = 4978166;
-            rtx0_inv = 10282;
-            break;
-        case 139:
-            rtx0     = 4988444;
+        case 69:
+            rtx0     = 4988441;
             rtx0_inv = 10274;
             break;
-        case 140:
-            rtx0     = 4998714;
-            rtx0_inv = 10266;
-            break;
-        case 141:
-            rtx0     = 5008977;
+        case 70:
+            rtx0     = 5008974;
             rtx0_inv = 10258;
             break;
-        case 142:
-            rtx0     = 5019231;
-            rtx0_inv = 10251;
-            break;
-        case 143:
-            rtx0     = 5029478;
+        case 71:
+            rtx0     = 5029475;
             rtx0_inv = 10243;
             break;
-        case 144:
-            rtx0     = 5039717;
-            rtx0_inv = 10235;
-            break;
-        case 145:
-            rtx0     = 5049948;
+        case 72:
+            rtx0     = 5049945;
             rtx0_inv = 10227;
             break;
-        case 146:
-            rtx0     = 5060171;
-            rtx0_inv = 10219;
-            break;
-        case 147:
-            rtx0     = 5070387;
+        case 73:
+            rtx0     = 5070384;
             rtx0_inv = 10212;
             break;
-        case 148:
-            rtx0     = 5080595;
-            rtx0_inv = 10204;
-            break;
-        case 149:
-            rtx0     = 5090795;
+        case 74:
+            rtx0     = 5090792;
             rtx0_inv = 10196;
             break;
-        case 150:
-            rtx0     = 5100987;
-            rtx0_inv = 10189;
-            break;
-        case 151:
-            rtx0     = 5111172;
+        case 75:
+            rtx0     = 5111169;
             rtx0_inv = 10181;
             break;
-        case 152:
-            rtx0     = 5121349;
-            rtx0_inv = 10173;
-            break;
-        case 153:
-            rtx0     = 5131518;
+        case 76:
+            rtx0     = 5131515;
             rtx0_inv = 10166;
             break;
-        case 154:
-            rtx0     = 5141680;
-            rtx0_inv = 10158;
-            break;
-        case 155:
-            rtx0     = 5151834;
+        case 77:
+            rtx0     = 5151831;
             rtx0_inv = 10150;
             break;
-        case 156:
-            rtx0     = 5161980;
-            rtx0_inv = 10143;
-            break;
-        case 157:
-            rtx0     = 5172119;
+        case 78:
+            rtx0     = 5172116;
             rtx0_inv = 10135;
             break;
-        case 158:
-            rtx0     = 5182250;
-            rtx0_inv = 10128;
-            break;
-        case 159:
-            rtx0     = 5192374;
+        case 79:
+            rtx0     = 5192371;
             rtx0_inv = 10120;
             break;
-        case 160:
-            rtx0     = 5202490;
-            rtx0_inv = 10112;
-            break;
-        case 161:
-            rtx0     = 5212599;
+        case 80:
+            rtx0     = 5212596;
             rtx0_inv = 10105;
             break;
-        case 162:
-            rtx0     = 5222700;
-            rtx0_inv = 10097;
-            break;
-        case 163:
-            rtx0     = 5232794;
+        case 81:
+            rtx0     = 5232791;
             rtx0_inv = 10090;
             break;
-        case 164:
-            rtx0     = 5242880;
-            rtx0_inv = 10082;
-            break;
-        case 165:
-            rtx0     = 5252959;
+        case 82:
+            rtx0     = 5252956;
             rtx0_inv = 10075;
             break;
-        case 166:
-            rtx0     = 5263030;
-            rtx0_inv = 10068;
-            break;
-        case 167:
-            rtx0     = 5273094;
+        case 83:
+            rtx0     = 5273091;
             rtx0_inv = 10060;
             break;
-        case 168:
-            rtx0     = 5283150;
-            rtx0_inv = 10053;
-            break;
-        case 169:
-            rtx0     = 5293199;
+        case 84:
+            rtx0     = 5293196;
             rtx0_inv = 10045;
             break;
-        case 170:
-            rtx0     = 5303241;
-            rtx0_inv = 10038;
-            break;
-        case 171:
-            rtx0     = 5313275;
+        case 85:
+            rtx0     = 5313272;
             rtx0_inv = 10031;
             break;
-        case 172:
-            rtx0     = 5323302;
-            rtx0_inv = 10023;
-            break;
-        case 173:
-            rtx0     = 5333322;
+        case 86:
+            rtx0     = 5333319;
             rtx0_inv = 10016;
             break;
-        case 174:
-            rtx0     = 5343334;
-            rtx0_inv = 10009;
-            break;
-        case 175:
-            rtx0     = 5353340;
+        case 87:
+            rtx0     = 5353337;
             rtx0_inv = 10001;
             break;
-        case 176:
-            rtx0     = 5363337;
-            rtx0_inv = 9994;
-            break;
-        case 177:
-            rtx0     = 5373328;
+        case 88:
+            rtx0     = 5373325;
             rtx0_inv = 9987;
             break;
-        case 178:
-            rtx0     = 5383311;
-            rtx0_inv = 9980;
-            break;
-        case 179:
-            rtx0     = 5393287;
+        case 89:
+            rtx0     = 5393284;
             rtx0_inv = 9972;
             break;
-        case 180:
-            rtx0     = 5403256;
-            rtx0_inv = 9965;
-            break;
-        case 181:
-            rtx0     = 5413218;
+        case 90:
+            rtx0     = 5413215;
             rtx0_inv = 9958;
             break;
-        case 182:
-            rtx0     = 5423172;
-            rtx0_inv = 9951;
-            break;
-        case 183:
-            rtx0     = 5433119;
+        case 91:
+            rtx0     = 5433116;
             rtx0_inv = 9944;
             break;
-        case 184:
-            rtx0     = 5443059;
-            rtx0_inv = 9937;
-            break;
-        case 185:
-            rtx0     = 5452992;
+        case 92:
+            rtx0     = 5452989;
             rtx0_inv = 9929;
             break;
-        case 186:
-            rtx0     = 5462918;
-            rtx0_inv = 9922;
-            break;
-        case 187:
-            rtx0     = 5472837;
+        case 93:
+            rtx0     = 5472834;
             rtx0_inv = 9915;
             break;
-        case 188:
-            rtx0     = 5482749;
-            rtx0_inv = 9908;
-            break;
-        case 189:
-            rtx0     = 5492653;
+        case 94:
+            rtx0     = 5492650;
             rtx0_inv = 9901;
             break;
-        case 190:
-            rtx0     = 5502551;
-            rtx0_inv = 9894;
-            break;
-        case 191:
-            rtx0     = 5512441;
+        case 95:
+            rtx0     = 5512438;
             rtx0_inv = 9887;
             break;
-        case 192:
-            rtx0     = 5522325;
-            rtx0_inv = 9880;
-            break;
-        case 193:
-            rtx0     = 5532201;
+        case 96:
+            rtx0     = 5532198;
             rtx0_inv = 9873;
             break;
-        case 194:
-            rtx0     = 5542070;
-            rtx0_inv = 9866;
-            break;
-        case 195:
-            rtx0     = 5551933;
+        case 97:
+            rtx0     = 5551930;
             rtx0_inv = 9859;
             break;
-        case 196:
-            rtx0     = 5561788;
-            rtx0_inv = 9852;
-            break;
-        case 197:
-            rtx0     = 5571637;
+        case 98:
+            rtx0     = 5571634;
             rtx0_inv = 9845;
             break;
-        case 198:
-            rtx0     = 5581478;
-            rtx0_inv = 9838;
-            break;
-        case 199:
-            rtx0     = 5591313;
+        case 99:
+            rtx0     = 5591310;
             rtx0_inv = 9831;
             break;
-        case 200:
-            rtx0     = 5601141;
-            rtx0_inv = 9824;
-            break;
-        case 201:
-            rtx0     = 5610962;
+        case 100:
+            rtx0     = 5610959;
             rtx0_inv = 9817;
             break;
-        case 202:
-            rtx0     = 5620775;
-            rtx0_inv = 9810;
-            break;
-        case 203:
-            rtx0     = 5630583;
+        case 101:
+            rtx0     = 5630580;
             rtx0_inv = 9804;
             break;
-        case 204:
-            rtx0     = 5640383;
-            rtx0_inv = 9797;
-            break;
-        case 205:
-            rtx0     = 5650176;
+        case 102:
+            rtx0     = 5650173;
             rtx0_inv = 9790;
             break;
-        case 206:
-            rtx0     = 5659963;
-            rtx0_inv = 9783;
-            break;
-        case 207:
-            rtx0     = 5669742;
+        case 103:
+            rtx0     = 5669739;
             rtx0_inv = 9776;
             break;
-        case 208:
-            rtx0     = 5679515;
-            rtx0_inv = 9770;
-            break;
-        case 209:
-            rtx0     = 5689281;
+        case 104:
+            rtx0     = 5689278;
             rtx0_inv = 9763;
             break;
-        case 210:
-            rtx0     = 5699041;
-            rtx0_inv = 9756;
-            break;
-        case 211:
-            rtx0     = 5708793;
+        case 105:
+            rtx0     = 5708790;
             rtx0_inv = 9749;
             break;
-        case 212:
-            rtx0     = 5718539;
-            rtx0_inv = 9743;
-            break;
-        case 213:
-            rtx0     = 5728278;
+        case 106:
+            rtx0     = 5728275;
             rtx0_inv = 9736;
             break;
-        case 214:
-            rtx0     = 5738011;
-            rtx0_inv = 9729;
-            break;
-        case 215:
-            rtx0     = 5747737;
+        case 107:
+            rtx0     = 5747734;
             rtx0_inv = 9722;
             break;
-        case 216:
-            rtx0     = 5757456;
-            rtx0_inv = 9716;
-            break;
-        case 217:
-            rtx0     = 5767168;
+        case 108:
+            rtx0     = 5767165;
             rtx0_inv = 9709;
             break;
-        case 218:
-            rtx0     = 5776874;
-            rtx0_inv = 9702;
-            break;
-        case 219:
-            rtx0     = 5786573;
+        case 109:
+            rtx0     = 5786570;
             rtx0_inv = 9696;
             break;
-        case 220:
-            rtx0     = 5796265;
-            rtx0_inv = 9689;
-            break;
-        case 221:
-            rtx0     = 5805951;
+        case 110:
+            rtx0     = 5805948;
             rtx0_inv = 9683;
             break;
-        case 222:
-            rtx0     = 5815630;
-            rtx0_inv = 9676;
-            break;
-        case 223:
-            rtx0     = 5825303;
+        case 111:
+            rtx0     = 5825300;
             rtx0_inv = 9669;
             break;
-        case 224:
-            rtx0     = 5834969;
-            rtx0_inv = 9663;
-            break;
-        case 225:
-            rtx0     = 5844628;
+        case 112:
+            rtx0     = 5844625;
             rtx0_inv = 9656;
             break;
-        case 226:
-            rtx0     = 5854281;
-            rtx0_inv = 9650;
-            break;
-        case 227:
-            rtx0     = 5863928;
+        case 113:
+            rtx0     = 5863925;
             rtx0_inv = 9643;
             break;
-        case 228:
-            rtx0     = 5873568;
-            rtx0_inv = 9637;
-            break;
-        case 229:
-            rtx0     = 5883201;
+        case 114:
+            rtx0     = 5883198;
             rtx0_inv = 9630;
             break;
-        case 230:
-            rtx0     = 5892828;
-            rtx0_inv = 9624;
-            break;
-        case 231:
-            rtx0     = 5902448;
+        case 115:
+            rtx0     = 5902445;
             rtx0_inv = 9617;
             break;
-        case 232:
-            rtx0     = 5912062;
-            rtx0_inv = 9611;
-            break;
-        case 233:
-            rtx0     = 5921669;
+        case 116:
+            rtx0     = 5921666;
             rtx0_inv = 9604;
             break;
-        case 234:
-            rtx0     = 5931270;
-            rtx0_inv = 9598;
-            break;
-        case 235:
-            rtx0     = 5940865;
+        case 117:
+            rtx0     = 5940862;
             rtx0_inv = 9591;
             break;
-        case 236:
-            rtx0     = 5950453;
-            rtx0_inv = 9585;
-            break;
-        case 237:
-            rtx0     = 5960035;
+        case 118:
+            rtx0     = 5960032;
             rtx0_inv = 9579;
             break;
-        case 238:
-            rtx0     = 5969610;
-            rtx0_inv = 9572;
-            break;
-        case 239:
-            rtx0     = 5979179;
+        case 119:
+            rtx0     = 5979176;
             rtx0_inv = 9566;
             break;
-        case 240:
-            rtx0     = 5988742;
-            rtx0_inv = 9559;
-            break;
-        case 241:
-            rtx0     = 5998298;
+        case 120:
+            rtx0     = 5998295;
             rtx0_inv = 9553;
             break;
-        case 242:
-            rtx0     = 6007848;
-            rtx0_inv = 9547;
-            break;
-        case 243:
-            rtx0     = 6017391;
+        case 121:
+            rtx0     = 6017388;
             rtx0_inv = 9540;
             break;
-        case 244:
-            rtx0     = 6026929;
-            rtx0_inv = 9534;
-            break;
-        case 245:
-            rtx0     = 6036460;
+        case 122:
+            rtx0     = 6036457;
             rtx0_inv = 9528;
             break;
-        case 246:
-            rtx0     = 6045984;
-            rtx0_inv = 9521;
-            break;
-        case 247:
-            rtx0     = 6055503;
+        case 123:
+            rtx0     = 6055500;
             rtx0_inv = 9515;
             break;
-        case 248:
-            rtx0     = 6065015;
-            rtx0_inv = 9509;
-            break;
-        case 249:
-            rtx0     = 6074521;
+        case 124:
+            rtx0     = 6074518;
             rtx0_inv = 9503;
             break;
-        case 250:
-            rtx0     = 6084020;
-            rtx0_inv = 9496;
-            break;
-        case 251:
-            rtx0     = 6093513;
+        case 125:
+            rtx0     = 6093510;
             rtx0_inv = 9490;
             break;
-        case 252:
-            rtx0     = 6103001;
-            rtx0_inv = 9484;
-            break;
-        case 253:
-            rtx0     = 6112482;
+        case 126:
+            rtx0     = 6112479;
             rtx0_inv = 9478;
             break;
-        case 254:
-            rtx0     = 6121956;
-            rtx0_inv = 9472;
-            break;
-        case 255:
-            rtx0     = 6131425;
+        case 127:
+            rtx0     = 6131422;
             rtx0_inv = 9465;
             break;
-        case 256:
-            rtx0     = 6140887;
-            rtx0_inv = 9459;
-            break;
-        case 257:
-            rtx0     = 6150343;
+        case 128:
+            rtx0     = 6150340;
             rtx0_inv = 9453;
             break;
-        case 258:
-            rtx0     = 6159794;
-            rtx0_inv = 9447;
-            break;
-        case 259:
-            rtx0     = 6169238;
+        case 129:
+            rtx0     = 6169235;
             rtx0_inv = 9441;
             break;
-        case 260:
-            rtx0     = 6178675;
-            rtx0_inv = 9435;
-            break;
-        case 261:
-            rtx0     = 6188107;
+        case 130:
+            rtx0     = 6188104;
             rtx0_inv = 9429;
             break;
-        case 262:
-            rtx0     = 6197533;
-            rtx0_inv = 9423;
-            break;
-        case 263:
-            rtx0     = 6206952;
+        case 131:
+            rtx0     = 6206949;
             rtx0_inv = 9416;
             break;
-        case 264:
-            rtx0     = 6216366;
-            rtx0_inv = 9410;
-            break;
-        case 265:
-            rtx0     = 6225773;
+        case 132:
+            rtx0     = 6225770;
             rtx0_inv = 9404;
             break;
-        case 266:
-            rtx0     = 6235174;
-            rtx0_inv = 9398;
-            break;
-        case 267:
-            rtx0     = 6244570;
+        case 133:
+            rtx0     = 6244567;
             rtx0_inv = 9392;
             break;
-        case 268:
-            rtx0     = 6253959;
-            rtx0_inv = 9386;
-            break;
-        case 269:
-            rtx0     = 6263342;
+        case 134:
+            rtx0     = 6263339;
             rtx0_inv = 9380;
             break;
-        case 270:
-            rtx0     = 6272719;
-            rtx0_inv = 9374;
-            break;
-        case 271:
-            rtx0     = 6282091;
+        case 135:
+            rtx0     = 6282088;
             rtx0_inv = 9368;
             break;
-        case 272:
-            rtx0     = 6291456;
-            rtx0_inv = 9362;
-            break;
-        case 273:
-            rtx0     = 6300815;
+        case 136:
+            rtx0     = 6300812;
             rtx0_inv = 9356;
             break;
-        case 274:
-            rtx0     = 6310169;
-            rtx0_inv = 9350;
-            break;
-        case 275:
-            rtx0     = 6319516;
+        case 137:
+            rtx0     = 6319513;
             rtx0_inv = 9344;
             break;
-        case 276:
-            rtx0     = 6328857;
-            rtx0_inv = 9338;
-            break;
-        case 277:
-            rtx0     = 6338193;
+        case 138:
+            rtx0     = 6338190;
             rtx0_inv = 9333;
             break;
-        case 278:
-            rtx0     = 6347523;
-            rtx0_inv = 9327;
-            break;
-        case 279:
-            rtx0     = 6356846;
+        case 139:
+            rtx0     = 6356843;
             rtx0_inv = 9321;
             break;
-        case 280:
-            rtx0     = 6366164;
-            rtx0_inv = 9315;
-            break;
-        case 281:
-            rtx0     = 6375476;
+        case 140:
+            rtx0     = 6375473;
             rtx0_inv = 9309;
             break;
-        case 282:
-            rtx0     = 6384782;
-            rtx0_inv = 9303;
-            break;
-        case 283:
-            rtx0     = 6394082;
+        case 141:
+            rtx0     = 6394079;
             rtx0_inv = 9297;
             break;
-        case 284:
-            rtx0     = 6403377;
-            rtx0_inv = 9291;
-            break;
-        case 285:
-            rtx0     = 6412665;
+        case 142:
+            rtx0     = 6412662;
             rtx0_inv = 9286;
             break;
-        case 286:
-            rtx0     = 6421948;
-            rtx0_inv = 9280;
-            break;
-        case 287:
-            rtx0     = 6431225;
+        case 143:
+            rtx0     = 6431222;
             rtx0_inv = 9274;
             break;
-        case 288:
-            rtx0     = 6440496;
-            rtx0_inv = 9268;
-            break;
-        case 289:
-            rtx0     = 6449761;
+        case 144:
+            rtx0     = 6449758;
             rtx0_inv = 9262;
             break;
-        case 290:
-            rtx0     = 6459021;
-            rtx0_inv = 9257;
-            break;
-        case 291:
-            rtx0     = 6468275;
+        case 145:
+            rtx0     = 6468272;
             rtx0_inv = 9251;
             break;
-        case 292:
-            rtx0     = 6477523;
-            rtx0_inv = 9245;
-            break;
-        case 293:
-            rtx0     = 6486765;
+        case 146:
+            rtx0     = 6486762;
             rtx0_inv = 9239;
             break;
-        case 294:
-            rtx0     = 6496001;
-            rtx0_inv = 9234;
-            break;
-        case 295:
-            rtx0     = 6505232;
+        case 147:
+            rtx0     = 6505229;
             rtx0_inv = 9228;
             break;
-        case 296:
-            rtx0     = 6514457;
-            rtx0_inv = 9222;
-            break;
-        case 297:
-            rtx0     = 6523676;
+        case 148:
+            rtx0     = 6523673;
             rtx0_inv = 9216;
             break;
-        case 298:
-            rtx0     = 6532890;
-            rtx0_inv = 9211;
-            break;
-        case 299:
-            rtx0     = 6542098;
+        case 149:
+            rtx0     = 6542095;
             rtx0_inv = 9205;
             break;
-        case 300:
-            rtx0     = 6551300;
-            rtx0_inv = 9199;
-            break;
-        case 301:
-            rtx0     = 6560497;
+        case 150:
+            rtx0     = 6560494;
             rtx0_inv = 9194;
             break;
-        case 302:
-            rtx0     = 6569688;
-            rtx0_inv = 9188;
-            break;
-        case 303:
-            rtx0     = 6578873;
+        case 151:
+            rtx0     = 6578870;
             rtx0_inv = 9183;
             break;
-        case 304:
-            rtx0     = 6588053;
-            rtx0_inv = 9177;
-            break;
-        case 305:
-            rtx0     = 6597227;
+        case 152:
+            rtx0     = 6597224;
             rtx0_inv = 9171;
             break;
-        case 306:
-            rtx0     = 6606395;
-            rtx0_inv = 9166;
-            break;
-        case 307:
-            rtx0     = 6615558;
+        case 153:
+            rtx0     = 6615555;
             rtx0_inv = 9160;
             break;
-        case 308:
-            rtx0     = 6624716;
-            rtx0_inv = 9154;
-            break;
-        case 309:
-            rtx0     = 6633867;
+        case 154:
+            rtx0     = 6633864;
             rtx0_inv = 9149;
             break;
-        case 310:
-            rtx0     = 6643013;
-            rtx0_inv = 9143;
-            break;
-        case 311:
-            rtx0     = 6652154;
+        case 155:
+            rtx0     = 6652151;
             rtx0_inv = 9138;
             break;
-        case 312:
-            rtx0     = 6661289;
-            rtx0_inv = 9132;
-            break;
-        case 313:
-            rtx0     = 6670418;
+        case 156:
+            rtx0     = 6670415;
             rtx0_inv = 9127;
             break;
-        case 314:
-            rtx0     = 6679542;
-            rtx0_inv = 9121;
-            break;
-        case 315:
-            rtx0     = 6688661;
+        case 157:
+            rtx0     = 6688658;
             rtx0_inv = 9116;
             break;
-        case 316:
-            rtx0     = 6697774;
-            rtx0_inv = 9110;
-            break;
-        case 317:
-            rtx0     = 6706881;
+        case 158:
+            rtx0     = 6706878;
             rtx0_inv = 9105;
             break;
-        case 318:
-            rtx0     = 6715983;
-            rtx0_inv = 9099;
-            break;
-        case 319:
-            rtx0     = 6725079;
+        case 159:
+            rtx0     = 6725076;
             rtx0_inv = 9094;
             break;
-        case 320:
-            rtx0     = 6734170;
-            rtx0_inv = 9088;
-            break;
-        case 321:
-            rtx0     = 6743256;
+        case 160:
+            rtx0     = 6743253;
             rtx0_inv = 9083;
             break;
-        case 322:
-            rtx0     = 6752336;
-            rtx0_inv = 9077;
-            break;
-        case 323:
-            rtx0     = 6761410;
+        case 161:
+            rtx0     = 6761407;
             rtx0_inv = 9072;
             break;
-        case 324:
-            rtx0     = 6770479;
-            rtx0_inv = 9066;
-            break;
-        case 325:
-            rtx0     = 6779543;
+        case 162:
+            rtx0     = 6779540;
             rtx0_inv = 9061;
             break;
-        case 326:
-            rtx0     = 6788601;
-            rtx0_inv = 9056;
-            break;
-        case 327:
-            rtx0     = 6797654;
+        case 163:
+            rtx0     = 6797651;
             rtx0_inv = 9050;
             break;
-        case 328:
-            rtx0     = 6806702;
-            rtx0_inv = 9045;
-            break;
-        case 329:
-            rtx0     = 6815744;
+        case 164:
+            rtx0     = 6815741;
             rtx0_inv = 9039;
             break;
-        case 330:
-            rtx0     = 6824781;
-            rtx0_inv = 9034;
-            break;
-        case 331:
-            rtx0     = 6833812;
+        case 165:
+            rtx0     = 6833809;
             rtx0_inv = 9029;
             break;
-        case 332:
-            rtx0     = 6842838;
-            rtx0_inv = 9023;
-            break;
-        case 333:
-            rtx0     = 6851859;
+        case 166:
+            rtx0     = 6851856;
             rtx0_inv = 9018;
             break;
-        case 334:
-            rtx0     = 6860874;
-            rtx0_inv = 9013;
-            break;
-        case 335:
-            rtx0     = 6869884;
+        case 167:
+            rtx0     = 6869881;
             rtx0_inv = 9007;
             break;
-        case 336:
-            rtx0     = 6878889;
-            rtx0_inv = 9002;
-            break;
-        case 337:
-            rtx0     = 6887888;
+        case 168:
+            rtx0     = 6887885;
             rtx0_inv = 8997;
             break;
-        case 338:
-            rtx0     = 6896883;
-            rtx0_inv = 8991;
-            break;
-        case 339:
-            rtx0     = 6905871;
+        case 169:
+            rtx0     = 6905868;
             rtx0_inv = 8986;
             break;
-        case 340:
-            rtx0     = 6914855;
-            rtx0_inv = 8981;
-            break;
-        case 341:
-            rtx0     = 6923833;
+        case 170:
+            rtx0     = 6923830;
             rtx0_inv = 8976;
             break;
-        case 342:
-            rtx0     = 6932806;
-            rtx0_inv = 8970;
-            break;
-        case 343:
-            rtx0     = 6941774;
+        case 171:
+            rtx0     = 6941771;
             rtx0_inv = 8965;
             break;
-        case 344:
-            rtx0     = 6950736;
-            rtx0_inv = 8960;
-            break;
-        case 345:
-            rtx0     = 6959694;
+        case 172:
+            rtx0     = 6959691;
             rtx0_inv = 8955;
             break;
-        case 346:
-            rtx0     = 6968646;
-            rtx0_inv = 8949;
-            break;
-        case 347:
-            rtx0     = 6977593;
+        case 173:
+            rtx0     = 6977590;
             rtx0_inv = 8944;
             break;
-        case 348:
-            rtx0     = 6986534;
-            rtx0_inv = 8939;
-            break;
-        case 349:
-            rtx0     = 6995471;
+        case 174:
+            rtx0     = 6995468;
             rtx0_inv = 8934;
             break;
-        case 350:
-            rtx0     = 7004402;
-            rtx0_inv = 8929;
-            break;
-        case 351:
-            rtx0     = 7013328;
+        case 175:
+            rtx0     = 7013325;
             rtx0_inv = 8923;
             break;
-        case 352:
-            rtx0     = 7022249;
-            rtx0_inv = 8918;
-            break;
-        case 353:
-            rtx0     = 7031165;
+        case 176:
+            rtx0     = 7031162;
             rtx0_inv = 8913;
             break;
-        case 354:
-            rtx0     = 7040075;
-            rtx0_inv = 8908;
-            break;
-        case 355:
-            rtx0     = 7048981;
+        case 177:
+            rtx0     = 7048978;
             rtx0_inv = 8903;
             break;
-        case 356:
-            rtx0     = 7057881;
-            rtx0_inv = 8898;
-            break;
-        case 357:
-            rtx0     = 7066776;
+        case 178:
+            rtx0     = 7066773;
             rtx0_inv = 8893;
             break;
-        case 358:
-            rtx0     = 7075666;
-            rtx0_inv = 8888;
-            break;
-        case 359:
-            rtx0     = 7084551;
+        case 179:
+            rtx0     = 7084548;
             rtx0_inv = 8882;
             break;
-        case 360:
-            rtx0     = 7093431;
-            rtx0_inv = 8877;
-            break;
-        case 361:
-            rtx0     = 7102306;
+        case 180:
+            rtx0     = 7102303;
             rtx0_inv = 8872;
             break;
-        case 362:
-            rtx0     = 7111176;
-            rtx0_inv = 8867;
-            break;
-        case 363:
-            rtx0     = 7120040;
+        case 181:
+            rtx0     = 7120037;
             rtx0_inv = 8862;
             break;
-        case 364:
-            rtx0     = 7128900;
-            rtx0_inv = 8857;
-            break;
-        case 365:
-            rtx0     = 7137754;
+        case 182:
+            rtx0     = 7137751;
             rtx0_inv = 8852;
             break;
-        case 366:
-            rtx0     = 7146604;
-            rtx0_inv = 8847;
-            break;
-        case 367:
-            rtx0     = 7155448;
+        case 183:
+            rtx0     = 7155445;
             rtx0_inv = 8842;
             break;
-        case 368:
-            rtx0     = 7164287;
-            rtx0_inv = 8837;
-            break;
-        case 369:
-            rtx0     = 7173122;
+        case 184:
+            rtx0     = 7173119;
             rtx0_inv = 8832;
             break;
-        case 370:
-            rtx0     = 7181951;
-            rtx0_inv = 8827;
-            break;
-        case 371:
-            rtx0     = 7190776;
+        case 185:
+            rtx0     = 7190773;
             rtx0_inv = 8822;
             break;
-        case 372:
-            rtx0     = 7199595;
-            rtx0_inv = 8817;
-            break;
-        case 373:
-            rtx0     = 7208409;
+        case 186:
+            rtx0     = 7208406;
             rtx0_inv = 8812;
             break;
-        case 374:
-            rtx0     = 7217219;
-            rtx0_inv = 8807;
-            break;
-        case 375:
-            rtx0     = 7226023;
+        case 187:
+            rtx0     = 7226020;
             rtx0_inv = 8802;
             break;
-        case 376:
-            rtx0     = 7234823;
-            rtx0_inv = 8797;
-            break;
-        case 377:
-            rtx0     = 7243617;
+        case 188:
+            rtx0     = 7243614;
             rtx0_inv = 8792;
             break;
-        case 378:
-            rtx0     = 7252407;
-            rtx0_inv = 8787;
-            break;
-        case 379:
-            rtx0     = 7261191;
+        case 189:
+            rtx0     = 7261188;
             rtx0_inv = 8782;
             break;
-        case 380:
-            rtx0     = 7269971;
-            rtx0_inv = 8777;
-            break;
-        case 381:
-            rtx0     = 7278746;
+        case 190:
+            rtx0     = 7278743;
             rtx0_inv = 8772;
             break;
-        case 382:
-            rtx0     = 7287516;
-            rtx0_inv = 8767;
-            break;
-        case 383:
-            rtx0     = 7296280;
+        case 191:
+            rtx0     = 7296277;
             rtx0_inv = 8763;
             break;
-        case 384:
-            rtx0     = 7305041;
-            rtx0_inv = 8758;
-            break;
-        case 385:
-            rtx0     = 7313796;
+        case 192:
+            rtx0     = 7313793;
             rtx0_inv = 8753;
             break;
-        case 386:
-            rtx0     = 7322546;
-            rtx0_inv = 8748;
-            break;
-        case 387:
-            rtx0     = 7331291;
+        case 193:
+            rtx0     = 7331288;
             rtx0_inv = 8743;
             break;
-        case 388:
-            rtx0     = 7340032;
-            rtx0_inv = 8738;
-            break;
-        case 389:
-            rtx0     = 7348768;
+        case 194:
+            rtx0     = 7348765;
             rtx0_inv = 8733;
             break;
-        case 390:
-            rtx0     = 7357499;
-            rtx0_inv = 8728;
-            break;
-        case 391:
-            rtx0     = 7366225;
+        case 195:
+            rtx0     = 7366222;
             rtx0_inv = 8724;
             break;
-        case 392:
-            rtx0     = 7374946;
-            rtx0_inv = 8719;
-            break;
-        case 393:
-            rtx0     = 7383662;
+        case 196:
+            rtx0     = 7383659;
             rtx0_inv = 8714;
             break;
-        case 394:
-            rtx0     = 7392374;
-            rtx0_inv = 8709;
-            break;
-        case 395:
-            rtx0     = 7401080;
+        case 197:
+            rtx0     = 7401077;
             rtx0_inv = 8704;
             break;
-        case 396:
-            rtx0     = 7409782;
-            rtx0_inv = 8700;
-            break;
-        case 397:
-            rtx0     = 7418480;
+        case 198:
+            rtx0     = 7418477;
             rtx0_inv = 8695;
             break;
-        case 398:
-            rtx0     = 7427172;
-            rtx0_inv = 8690;
-            break;
-        case 399:
-            rtx0     = 7435860;
+        case 199:
+            rtx0     = 7435857;
             rtx0_inv = 8685;
             break;
-        case 400:
-            rtx0     = 7444542;
-            rtx0_inv = 8680;
-            break;
-        case 401:
-            rtx0     = 7453220;
+        case 200:
+            rtx0     = 7453217;
             rtx0_inv = 8676;
             break;
-        case 402:
-            rtx0     = 7461894;
-            rtx0_inv = 8671;
-            break;
-        case 403:
-            rtx0     = 7470562;
+        case 201:
+            rtx0     = 7470559;
             rtx0_inv = 8666;
             break;
-        case 404:
-            rtx0     = 7479226;
-            rtx0_inv = 8661;
-            break;
-        case 405:
-            rtx0     = 7487885;
+        case 202:
+            rtx0     = 7487882;
             rtx0_inv = 8657;
             break;
-        case 406:
-            rtx0     = 7496540;
-            rtx0_inv = 8652;
-            break;
-        case 407:
-            rtx0     = 7505189;
+        case 203:
+            rtx0     = 7505186;
             rtx0_inv = 8647;
             break;
-        case 408:
-            rtx0     = 7513834;
-            rtx0_inv = 8643;
-            break;
-        case 409:
-            rtx0     = 7522475;
+        case 204:
+            rtx0     = 7522472;
             rtx0_inv = 8638;
             break;
-        case 410:
-            rtx0     = 7531110;
-            rtx0_inv = 8633;
-            break;
-        case 411:
-            rtx0     = 7539741;
+        case 205:
+            rtx0     = 7539738;
             rtx0_inv = 8629;
             break;
-        case 412:
-            rtx0     = 7548367;
-            rtx0_inv = 8624;
-            break;
-        case 413:
-            rtx0     = 7556989;
+        case 206:
+            rtx0     = 7556986;
             rtx0_inv = 8619;
             break;
-        case 414:
-            rtx0     = 7565606;
-            rtx0_inv = 8615;
-            break;
-        case 415:
-            rtx0     = 7574218;
+        case 207:
+            rtx0     = 7574215;
             rtx0_inv = 8610;
             break;
-        case 416:
-            rtx0     = 7582826;
-            rtx0_inv = 8605;
-            break;
-        case 417:
-            rtx0     = 7591429;
+        case 208:
+            rtx0     = 7591426;
             rtx0_inv = 8601;
             break;
-        case 418:
-            rtx0     = 7600027;
-            rtx0_inv = 8596;
-            break;
-        case 419:
-            rtx0     = 7608621;
+        case 209:
+            rtx0     = 7608618;
             rtx0_inv = 8591;
             break;
-        case 420:
-            rtx0     = 7617210;
-            rtx0_inv = 8587;
-            break;
-        case 421:
-            rtx0     = 7625794;
+        case 210:
+            rtx0     = 7625791;
             rtx0_inv = 8582;
             break;
-        case 422:
-            rtx0     = 7634374;
-            rtx0_inv = 8578;
-            break;
-        case 423:
-            rtx0     = 7642950;
+        case 211:
+            rtx0     = 7642947;
             rtx0_inv = 8573;
             break;
-        case 424:
-            rtx0     = 7651520;
-            rtx0_inv = 8568;
-            break;
-        case 425:
-            rtx0     = 7660087;
+        case 212:
+            rtx0     = 7660084;
             rtx0_inv = 8564;
             break;
-        case 426:
-            rtx0     = 7668648;
-            rtx0_inv = 8559;
-            break;
-        case 427:
-            rtx0     = 7677205;
+        case 213:
+            rtx0     = 7677202;
             rtx0_inv = 8555;
             break;
-        case 428:
-            rtx0     = 7685758;
-            rtx0_inv = 8550;
-            break;
-        case 429:
-            rtx0     = 7694306;
+        case 214:
+            rtx0     = 7694303;
             rtx0_inv = 8546;
             break;
-        case 430:
-            rtx0     = 7702849;
-            rtx0_inv = 8541;
-            break;
-        case 431:
-            rtx0     = 7711388;
+        case 215:
+            rtx0     = 7711385;
             rtx0_inv = 8537;
             break;
-        case 432:
-            rtx0     = 7719922;
-            rtx0_inv = 8532;
-            break;
-        case 433:
-            rtx0     = 7728452;
+        case 216:
+            rtx0     = 7728449;
             rtx0_inv = 8528;
             break;
-        case 434:
-            rtx0     = 7736977;
-            rtx0_inv = 8523;
-            break;
-        case 435:
-            rtx0     = 7745498;
+        case 217:
+            rtx0     = 7745495;
             rtx0_inv = 8519;
             break;
-        case 436:
-            rtx0     = 7754014;
-            rtx0_inv = 8514;
-            break;
-        case 437:
-            rtx0     = 7762526;
+        case 218:
+            rtx0     = 7762523;
             rtx0_inv = 8510;
             break;
-        case 438:
-            rtx0     = 7771033;
-            rtx0_inv = 8505;
-            break;
-        case 439:
-            rtx0     = 7779536;
+        case 219:
+            rtx0     = 7779533;
             rtx0_inv = 8501;
             break;
-        case 440:
-            rtx0     = 7788035;
-            rtx0_inv = 8496;
-            break;
-        case 441:
-            rtx0     = 7796529;
+        case 220:
+            rtx0     = 7796526;
             rtx0_inv = 8492;
             break;
-        case 442:
-            rtx0     = 7805018;
-            rtx0_inv = 8487;
-            break;
-        case 443:
-            rtx0     = 7813503;
+        case 221:
+            rtx0     = 7813500;
             rtx0_inv = 8483;
             break;
-        case 444:
-            rtx0     = 7821984;
-            rtx0_inv = 8478;
-            break;
-        case 445:
-            rtx0     = 7830460;
+        case 222:
+            rtx0     = 7830457;
             rtx0_inv = 8474;
             break;
-        case 446:
-            rtx0     = 7838931;
-            rtx0_inv = 8469;
-            break;
-        case 447:
-            rtx0     = 7847399;
+        case 223:
+            rtx0     = 7847396;
             rtx0_inv = 8465;
             break;
-        case 448:
-            rtx0     = 7855862;
-            rtx0_inv = 8461;
-            break;
-        case 449:
-            rtx0     = 7864320;
+        case 224:
+            rtx0     = 7864317;
             rtx0_inv = 8456;
             break;
-        case 450:
-            rtx0     = 7872774;
-            rtx0_inv = 8452;
-            break;
-        case 451:
-            rtx0     = 7881224;
+        case 225:
+            rtx0     = 7881221;
             rtx0_inv = 8447;
             break;
-        case 452:
-            rtx0     = 7889669;
-            rtx0_inv = 8443;
-            break;
-        case 453:
-            rtx0     = 7898110;
+        case 226:
+            rtx0     = 7898107;
             rtx0_inv = 8439;
             break;
-        case 454:
-            rtx0     = 7906546;
-            rtx0_inv = 8434;
-            break;
-        case 455:
-            rtx0     = 7914979;
+        case 227:
+            rtx0     = 7914976;
             rtx0_inv = 8430;
             break;
-        case 456:
-            rtx0     = 7923406;
-            rtx0_inv = 8426;
-            break;
-        case 457:
-            rtx0     = 7931830;
+        case 228:
+            rtx0     = 7931827;
             rtx0_inv = 8421;
             break;
-        case 458:
-            rtx0     = 7940249;
-            rtx0_inv = 8417;
-            break;
-        case 459:
-            rtx0     = 7948664;
+        case 229:
+            rtx0     = 7948661;
             rtx0_inv = 8413;
             break;
-        case 460:
-            rtx0     = 7957074;
-            rtx0_inv = 8408;
-            break;
-        case 461:
-            rtx0     = 7965480;
+        case 230:
+            rtx0     = 7965477;
             rtx0_inv = 8404;
             break;
-        case 462:
-            rtx0     = 7973882;
-            rtx0_inv = 8400;
-            break;
-        case 463:
-            rtx0     = 7982280;
+        case 231:
+            rtx0     = 7982277;
             rtx0_inv = 8395;
             break;
-        case 464:
-            rtx0     = 7990673;
-            rtx0_inv = 8391;
-            break;
-        case 465:
-            rtx0     = 7999062;
+        case 232:
+            rtx0     = 7999059;
             rtx0_inv = 8387;
             break;
-        case 466:
-            rtx0     = 8007446;
-            rtx0_inv = 8382;
-            break;
-        case 467:
-            rtx0     = 8015826;
+        case 233:
+            rtx0     = 8015823;
             rtx0_inv = 8378;
             break;
-        case 468:
-            rtx0     = 8024203;
-            rtx0_inv = 8374;
-            break;
-        case 469:
-            rtx0     = 8032574;
+        case 234:
+            rtx0     = 8032571;
             rtx0_inv = 8370;
             break;
-        case 470:
-            rtx0     = 8040942;
-            rtx0_inv = 8365;
-            break;
-        case 471:
-            rtx0     = 8049305;
+        case 235:
+            rtx0     = 8049302;
             rtx0_inv = 8361;
             break;
-        case 472:
-            rtx0     = 8057664;
-            rtx0_inv = 8357;
-            break;
-        case 473:
-            rtx0     = 8066019;
+        case 236:
+            rtx0     = 8066016;
             rtx0_inv = 8353;
             break;
-        case 474:
-            rtx0     = 8074369;
-            rtx0_inv = 8348;
-            break;
-        case 475:
-            rtx0     = 8082715;
+        case 237:
+            rtx0     = 8082712;
             rtx0_inv = 8344;
             break;
-        case 476:
-            rtx0     = 8091057;
-            rtx0_inv = 8340;
-            break;
-        case 477:
-            rtx0     = 8099395;
+        case 238:
+            rtx0     = 8099392;
             rtx0_inv = 8336;
             break;
-        case 478:
-            rtx0     = 8107729;
-            rtx0_inv = 8331;
-            break;
-        case 479:
-            rtx0     = 8116058;
+        case 239:
+            rtx0     = 8116055;
             rtx0_inv = 8327;
             break;
-        case 480:
-            rtx0     = 8124383;
-            rtx0_inv = 8323;
-            break;
-        case 481:
-            rtx0     = 8132704;
+        case 240:
+            rtx0     = 8132701;
             rtx0_inv = 8319;
             break;
-        case 482:
-            rtx0     = 8141021;
-            rtx0_inv = 8315;
-            break;
-        case 483:
-            rtx0     = 8149334;
+        case 241:
+            rtx0     = 8149331;
             rtx0_inv = 8311;
             break;
-        case 484:
-            rtx0     = 8157642;
-            rtx0_inv = 8306;
-            break;
-        case 485:
-            rtx0     = 8165946;
+        case 242:
+            rtx0     = 8165943;
             rtx0_inv = 8302;
             break;
-        case 486:
-            rtx0     = 8174247;
-            rtx0_inv = 8298;
-            break;
-        case 487:
-            rtx0     = 8182543;
+        case 243:
+            rtx0     = 8182540;
             rtx0_inv = 8294;
             break;
-        case 488:
-            rtx0     = 8190834;
-            rtx0_inv = 8290;
-            break;
-        case 489:
-            rtx0     = 8199122;
+        case 244:
+            rtx0     = 8199119;
             rtx0_inv = 8286;
             break;
-        case 490:
-            rtx0     = 8207405;
-            rtx0_inv = 8281;
-            break;
-        case 491:
-            rtx0     = 8215685;
+        case 245:
+            rtx0     = 8215682;
             rtx0_inv = 8277;
             break;
-        case 492:
-            rtx0     = 8223960;
-            rtx0_inv = 8273;
-            break;
-        case 493:
-            rtx0     = 8232231;
+        case 246:
+            rtx0     = 8232228;
             rtx0_inv = 8269;
             break;
-        case 494:
-            rtx0     = 8240498;
-            rtx0_inv = 8265;
-            break;
-        case 495:
-            rtx0     = 8248761;
+        case 247:
+            rtx0     = 8248758;
             rtx0_inv = 8261;
             break;
-        case 496:
-            rtx0     = 8257020;
-            rtx0_inv = 8257;
-            break;
-        case 497:
-            rtx0     = 8265275;
+        case 248:
+            rtx0     = 8265272;
             rtx0_inv = 8253;
             break;
-        case 498:
-            rtx0     = 8273525;
-            rtx0_inv = 8249;
-            break;
-        case 499:
-            rtx0     = 8281772;
+        case 249:
+            rtx0     = 8281769;
             rtx0_inv = 8245;
             break;
-        case 500:
-            rtx0     = 8290014;
-            rtx0_inv = 8240;
-            break;
-        case 501:
-            rtx0     = 8298253;
+        case 250:
+            rtx0     = 8298250;
             rtx0_inv = 8236;
             break;
-        case 502:
-            rtx0     = 8306487;
-            rtx0_inv = 8232;
-            break;
-        case 503:
-            rtx0     = 8314717;
+        case 251:
+            rtx0     = 8314714;
             rtx0_inv = 8228;
             break;
-        case 504:
-            rtx0     = 8322943;
-            rtx0_inv = 8224;
-            break;
-        case 505:
-            rtx0     = 8331166;
+        case 252:
+            rtx0     = 8331163;
             rtx0_inv = 8220;
             break;
-        case 506:
-            rtx0     = 8339384;
-            rtx0_inv = 8216;
-            break;
-        case 507:
-            rtx0     = 8347598;
+        case 253:
+            rtx0     = 8347595;
             rtx0_inv = 8212;
             break;
-        case 508:
-            rtx0     = 8355808;
-            rtx0_inv = 8208;
-            break;
-        case 509:
-            rtx0     = 8364014;
+        case 254:
+            rtx0     = 8364011;
             rtx0_inv = 8204;
             break;
-        case 510:
-            rtx0     = 8372216;
-            rtx0_inv = 8200;
-            break;
-        case 511:
-            rtx0     = 8380414;
+        case 255:
+            rtx0     = 8380411;
             rtx0_inv = 8196;
             break;
     }
-    xr = x & 0xffffff;
-
-    if(xr == 0x7fffff || xr == 0x7ffffe || xr == 0x7ffffd) corner_flag = 1;
-    else corner_flag = 0;
-
-    if(ex == 0) ey = 0;
-    else ey = 63 + (ex >> 1) + (ex  & 1) + corner_flag;
-    my_extend = ((unsigned long)rtx0 << 14) + (unsigned long)rtx0_inv * (unsigned long)h;
-    my_long = my_extend >> 14;
+    my_extend1 = ((unsigned long)rtx0 << 14) + (unsigned long)rtx0_inv * (unsigned long)h;
+    my_extend2 = ((unsigned long)rtx0 << 14) - (unsigned long)rtx0_inv * (unsigned long)noth;
+    if(pm) my_long = (my_extend1 >> 14) & 0x7fffff;
+    else my_long = (my_extend2 >> 14) & 0x7fffff;
     my = (unsigned int)my_long;
+    if((x & 0x7fffffff) == 0) ey = 0;
+    else ey = 63 + (ex >> 1) + (ex & 1);
     y = (ey << 23) | my;
     r = *((float *)&y);
     return r;
