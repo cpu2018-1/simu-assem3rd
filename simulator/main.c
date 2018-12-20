@@ -57,7 +57,8 @@ int currchnum = 0;
 long long int dopcount = 0;
 
 //分岐予測器
-int bp[BPNUM] = {0};
+int bht[4][BPNUM] = {0};
+int ghr = 0;
 int bpfilter = 0;
 int bpaddr;
 int bpflag = 0;
@@ -452,7 +453,7 @@ int main (int argc, char *argv[]){
                 opcount[14]++;
                 bopcount++;
                 bpaddr = udivimm & bpfilter;
-                bpflag = bp[bpaddr];
+                bpflag = bht[ghr][bpaddr];
                 if(debug){
                   strcpy(currop, "beq");
                   if(sub == 0)
@@ -461,14 +462,16 @@ int main (int argc, char *argv[]){
                 if(reg[rs] == reg[rt]){
                     bcount++;
                     bpsuccess += (bpflag >= 2 ? 1 : 0);
-                    bp[bpaddr] = taken[bpflag];
+                    bht[ghr][bpaddr] = taken[bpflag];
+                    ghr = (ghr >> 1) + 2;
                     pc = udivimm;
                     if(debug && sub)
                        printf("beq r%d r%d \e[33m%s(line %d)\e[0m\n",rs ,rt, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
                 }else{
                     bpsuccess += (bpflag <= 1 ? 1 : 0);
-                    bp[bpaddr] = nottaken[bpflag];
+                    bht[ghr][bpaddr] = nottaken[bpflag];
+                    ghr = (ghr >> 1);
                     if(debug && sub)
                       printf("beq r%d r%d %s(line %d)\n",rs ,rt, subinfo[udivimm].label, subinfo[udivimm].l_linenum);   
                     pc++;
@@ -479,7 +482,7 @@ int main (int argc, char *argv[]){
                 opcount[15]++;
                 bopcount++;
                 bpaddr = udivimm & bpfilter;
-                bpflag = bp[bpaddr];
+                bpflag = bht[ghr][bpaddr];
                 if(debug){
                   strcpy(currop, "ble");
                   if(sub == 0)
@@ -488,14 +491,16 @@ int main (int argc, char *argv[]){
                 if(reg[rs] <= reg[rt]){
                     bcount++;
                     bpsuccess += (bpflag >= 2 ? 1 : 0);
-                    bp[bpaddr] = taken[bpflag];
+                    bht[ghr][bpaddr] = taken[bpflag];
+                    ghr = (ghr >> 1) + 2;
                     pc = udivimm;
                     if(debug && sub)
                        printf("ble r%d r%d \e[33m%s(line %d)\e[0m\n",rs ,rt, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
                 }else{
                     bpsuccess += (bpflag <= 1 ? 1 : 0);
-                    bp[bpaddr] = nottaken[bpflag];
+                    bht[ghr][bpaddr] = nottaken[bpflag];
+                    ghr = (ghr >> 1);
                     if(debug && sub)
                       printf("ble r%d r%d %s(line %d)\n",rs ,rt, subinfo[udivimm].label, subinfo[udivimm].l_linenum);   
                     pc++;
@@ -506,7 +511,7 @@ int main (int argc, char *argv[]){
                 opcount[16]++;
                 bopcount++;
                 bpaddr = uimm & bpfilter;
-                bpflag = bp[bpaddr];
+                bpflag = bht[ghr][bpaddr];
                 if(debug){
                   strcpy(currop, "beqi");
                   if(sub == 0)
@@ -515,14 +520,16 @@ int main (int argc, char *argv[]){
                 if(reg[rs] == opr){
                     bcount++;
                     bpsuccess += (bpflag >= 2 ? 1 : 0);
-                    bp[bpaddr] = taken[bpflag];
+                    bht[ghr][bpaddr] = taken[bpflag];
+                    ghr = (ghr >> 1) + 2;
                     pc = uimm;
                     if(debug && sub)
                        printf("beqi %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
                 }else{
                     bpsuccess += (bpflag <= 1 ? 1 : 0);
-                    bp[bpaddr] = nottaken[bpflag];
+                    bht[ghr][bpaddr] = nottaken[bpflag];
+                    ghr = (ghr >> 1);
                     if(debug && sub)
                       printf("beqi %d r%d %s(line %d)\n", opr ,rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
                     pc++;
@@ -533,7 +540,7 @@ int main (int argc, char *argv[]){
                 opcount[17]++;
                 bopcount++;
                 bpaddr = uimm & bpfilter;
-                bpflag = bp[bpaddr];
+                bpflag = bht[ghr][bpaddr];
                 if(debug){
                   strcpy(currop, "bnei");
                   if(sub == 0)
@@ -542,14 +549,16 @@ int main (int argc, char *argv[]){
                 if(reg[rs] != opr){
                     bcount++;
                     bpsuccess += (bpflag >= 2 ? 1 : 0);
-                    bp[bpaddr] = taken[bpflag];
+                    bht[ghr][bpaddr] = taken[bpflag];
+                    ghr = (ghr >> 1) + 2;
                     pc = uimm;
                     if(debug && sub)
                        printf("bnei %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
                 }else{
                     bpsuccess += (bpflag <= 1 ? 1 : 0);
-                    bp[bpaddr] = nottaken[bpflag];
+                    bht[ghr][bpaddr] = nottaken[bpflag];
+                    ghr = (ghr >> 1);
                     if(debug && sub)
                       printf("bnei %d r%d %s(line %d)\n", opr ,rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
                     pc++;
@@ -560,7 +569,7 @@ int main (int argc, char *argv[]){
                 opcount[18]++;
                 bopcount++;
                 bpaddr = uimm & bpfilter;
-                bpflag = bp[bpaddr];
+                bpflag = bht[ghr][bpaddr];
                 if(debug){
                   strcpy(currop, "blei");
                   if(sub == 0)
@@ -569,14 +578,16 @@ int main (int argc, char *argv[]){
                 if(reg[rs] <= opr){
                     bcount++;
                     bpsuccess += (bpflag >= 2 ? 1 : 0);
-                    bp[bpaddr] = taken[bpflag];
+                    bht[ghr][bpaddr] = taken[bpflag];
+                    ghr = (ghr >> 1) + 2;
                     pc = uimm;
                     if(debug && sub)
                        printf("blei %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
                 }else{
                     bpsuccess += (bpflag <= 1 ? 1 : 0);
-                    bp[bpaddr] = nottaken[bpflag];
+                    bht[ghr][bpaddr] = nottaken[bpflag];
+                    ghr = (ghr >> 1);
                     if(debug && sub)
                       printf("blei %d r%d %s(line %d)\n", opr, rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
                     pc++;
@@ -587,7 +598,7 @@ int main (int argc, char *argv[]){
                 opcount[19]++;
                 bopcount++;
                 bpaddr = uimm & bpfilter;
-                bpflag = bp[bpaddr];
+                bpflag = bht[ghr][bpaddr];
                 if(debug){
                   strcpy(currop, "bgei");
                   if(sub == 0)
@@ -596,14 +607,16 @@ int main (int argc, char *argv[]){
                 if(reg[rs] >= opr){
                     bcount++;
                     bpsuccess += (bpflag >= 2 ? 1 : 0);
-                    bp[bpaddr] = taken[bpflag];
+                    bht[ghr][bpaddr] = taken[bpflag];
+                    ghr = (ghr >> 1) + 2;
                     pc = uimm;
                     if(debug && sub)
                        printf("bgei %d r%d \e[33m%s(line %d)\e[0m\n", opr, rs, subinfo[pc].label, subinfo[pc].l_linenum);   
                     subinfo[pc].jumpcount++;
                 }else{
                     bpsuccess += (bpflag <= 1 ? 1 : 0);
-                    bp[bpaddr] = nottaken[bpflag];
+                    bht[ghr][bpaddr] = nottaken[bpflag];
+                    ghr = (ghr >> 1);
                     if(debug && sub)
                       printf("bgei %d r%d %s(line %d)\n", opr ,rs, subinfo[uimm].label, subinfo[uimm].l_linenum);   
                     pc++;
